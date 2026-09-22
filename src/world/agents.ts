@@ -499,7 +499,25 @@ function drawHoloSphere(ctx: CanvasRenderingContext2D, x: number, y: number, t: 
   ctx.restore();
 }
 
-/** Astro Bot-inspired cute robot agents */
+/** Role-based visual config for distinct silhouettes */
+const ROLE_VISUALS: Record<string, {
+  headShape: 'round' | 'square' | 'tall' | 'wide';
+  antennaStyle: 'single' | 'dual' | 'dish' | 'spike' | 'loop' | 'none';
+  bodyAccent: 'badge' | 'stripe' | 'panel' | 'glow' | 'none';
+  toolType: 'wrench' | 'tablet' | 'brush' | 'scanner' | 'clipboard' | 'chart';
+  eyeStyle: 'round' | 'angular' | 'wide' | 'focused' | 'friendly';
+}> = {
+  coordinator: { headShape: 'round', antennaStyle: 'dual', bodyAccent: 'badge', toolType: 'clipboard', eyeStyle: 'focused' },
+  deployer: { headShape: 'square', antennaStyle: 'spike', bodyAccent: 'stripe', toolType: 'tablet', eyeStyle: 'angular' },
+  designer: { headShape: 'round', antennaStyle: 'loop', bodyAccent: 'glow', toolType: 'brush', eyeStyle: 'wide' },
+  builder: { headShape: 'wide', antennaStyle: 'single', bodyAccent: 'panel', toolType: 'wrench', eyeStyle: 'round' },
+  helper: { headShape: 'round', antennaStyle: 'dish', bodyAccent: 'badge', toolType: 'scanner', eyeStyle: 'friendly' },
+  analyst: { headShape: 'tall', antennaStyle: 'dual', bodyAccent: 'stripe', toolType: 'chart', eyeStyle: 'angular' },
+};
+
+const DEFAULT_ROLE_VISUAL = { headShape: 'round' as const, antennaStyle: 'single' as const, bodyAccent: 'none' as const, toolType: 'wrench' as const, eyeStyle: 'round' as const };
+
+/** Astro Bot-inspired cute robot agents with role-based distinct silhouettes */
 export function drawAgent(
   ctx: CanvasRenderingContext2D,
   agent: Agent,
@@ -509,21 +527,29 @@ export function drawAgent(
 ): void {
   const x = agent.x * w;
   const y = agent.y * h;
-  const scale = Math.max(2.2, Math.min(w, h) / 240);
+  const scale = Math.max(2.4, Math.min(w, h) / 220);
   const px = Math.round(scale);
 
-  // Bounce animation - more playful for idle, energetic for building
-  const bounce =
-    agent.state === 'walking'
-      ? Math.abs(Math.sin(agent.frame * 2.5)) * px * 1.2
-      : agent.state === 'building'
-        ? Math.abs(Math.sin(agent.frame * 3.5)) * px * 0.8
-        : agent.state === 'idle'
-          ? Math.sin(agent.frame * 1.2) * px * 0.5
-          : 0;
+  const roleVisual = ROLE_VISUALS[agent.role ?? ''] ?? DEFAULT_ROLE_VISUAL;
+  const isWorking = agent.state === 'building';
+  const isIdle = agent.state === 'idle';
+  const isWalking = agent.state === 'walking';
 
-  // Slight tilt when walking
-  const tilt = agent.state === 'walking' ? Math.sin(agent.frame * 2.5) * 0.08 : 0;
+  // Bounce animation - calm idle, energetic working
+  const bounce = isWalking
+    ? Math.abs(Math.sin(agent.frame * 2.8)) * px * 1.5
+    : isWorking
+      ? Math.abs(Math.sin(agent.frame * 4)) * px * 1.2 + Math.abs(Math.cos(agent.frame * 6)) * px * 0.4
+      : isIdle
+        ? Math.sin(agent.frame * 0.8) * px * 0.25
+        : 0;
+
+  // Tilt - more pronounced when working
+  const tilt = isWalking
+    ? Math.sin(agent.frame * 2.8) * 0.1
+    : isWorking
+      ? Math.sin(agent.frame * 5) * 0.06
+      : 0;
 
   ctx.save();
   ctx.translate(Math.round(x), Math.round(y - bounce));
@@ -531,240 +557,642 @@ export function drawAgent(
   ctx.imageSmoothingEnabled = false;
 
   const body = agent.color;
-  const shade = shadeColor(agent.color, -30);
-  const light = shadeColor(agent.color, 40);
+  const shade = shadeColor(agent.color, -35);
+  const light = shadeColor(agent.color, 50);
   const accent = STATE_ACCENT[agent.state];
 
-  // Soft ground shadow
+  // Working state particle aura
+  if (isWorking) {
+    drawWorkingAura(ctx, px, agent.frame, body);
+  }
+
+  // Ground shadow (size varies with state)
   ctx.save();
   ctx.rotate(-tilt);
   ctx.translate(0, bounce);
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+  const shadowSize = isWorking ? 1.15 : isIdle ? 0.9 : 1;
+  ctx.fillStyle = `rgba(0, 0, 0, ${isWorking ? 0.45 : 0.32})`;
   ctx.beginPath();
-  ctx.ellipse(0, 10 * px, 9 * px, 3 * px, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 11 * px, 10 * px * shadowSize, 3.5 * px * shadowSize, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
   // Selection glow ring
   if (selected) {
-    ctx.strokeStyle = 'rgba(100, 180, 255, 0.6)';
-    ctx.lineWidth = 2;
+    const selPulse = 0.8 + 0.2 * Math.sin(agent.frame * 3);
+    ctx.strokeStyle = `rgba(100, 200, 255, ${0.7 * selPulse})`;
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.ellipse(0, 3 * px, 14 * px, 16 * px, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 2 * px, 15 * px, 18 * px, 0, 0, Math.PI * 2);
     ctx.stroke();
 
-    const selGlow = ctx.createRadialGradient(0, 0, 5 * px, 0, 0, 18 * px);
-    selGlow.addColorStop(0, 'rgba(100, 180, 255, 0.15)');
-    selGlow.addColorStop(1, 'rgba(100, 180, 255, 0)');
+    const selGlow = ctx.createRadialGradient(0, 0, 6 * px, 0, 0, 22 * px);
+    selGlow.addColorStop(0, `rgba(100, 200, 255, ${0.2 * selPulse})`);
+    selGlow.addColorStop(1, 'rgba(100, 200, 255, 0)');
     ctx.fillStyle = selGlow;
-    ctx.fillRect(-20 * px, -20 * px, 40 * px, 40 * px);
+    ctx.fillRect(-24 * px, -24 * px, 48 * px, 48 * px);
   }
 
-  // Feet (little rounded nubs)
-  const footOff = agent.state === 'walking' ? Math.sin(agent.frame * 2.5) * px * 2 : 0;
-  ctx.fillStyle = shade;
-  roundRect(ctx, -5 * px + footOff, 6 * px, 4 * px, 3 * px, px);
-  ctx.fill();
-  roundRect(ctx, 1 * px - footOff, 6 * px, 4 * px, 3 * px, px);
-  ctx.fill();
+  // Feet with role-based style
+  const footOff = isWalking ? Math.sin(agent.frame * 2.8) * px * 2.5 : 
+                  isWorking ? Math.sin(agent.frame * 5) * px * 0.8 : 0;
+  drawFeet(ctx, px, footOff, shade, roleVisual.headShape);
 
-  // Body (rounded pill shape)
+  // Body with role-based accent
+  drawBody(ctx, px, body, shade, light, roleVisual.bodyAccent, agent.frame, isWorking);
+
+  // Core/chest light (more intense when working)
+  drawCore(ctx, px, agent.frame, isWorking, isIdle);
+
+  // Arms with motion
+  const armSwing = isWalking ? Math.sin(agent.frame * 2.8) * px * 2 :
+                   isWorking ? Math.sin(agent.frame * 5) * px * 1.5 : 
+                   isIdle ? Math.sin(agent.frame * 0.8) * px * 0.3 : 0;
+  drawArms(ctx, px, armSwing, shade, isWorking);
+
+  // Head with role-based shape
+  const headY = -12 * px;
+  drawHead(ctx, px, headY, body, light, roleVisual.headShape);
+
+  // Visor with role-based eye style
+  drawVisor(ctx, px, headY, agent.state, agent.frame, roleVisual.eyeStyle);
+
+  // Role-based antenna
+  drawAntenna(ctx, px, headY, shade, accent, roleVisual.antennaStyle, agent.frame, isWorking);
+
+  // State indicators and tool when working
+  if (isWorking) {
+    drawWorkingTool(ctx, px, armSwing, agent.frame, roleVisual.toolType, body);
+    drawWorkSparks(ctx, px, agent.frame);
+  } else if (agent.state === 'waiting') {
+    drawWaitingIndicator(ctx, px, headY, accent, agent.frame);
+  } else if (agent.state === 'errored') {
+    drawErrorIndicator(ctx, px, headY, accent);
+  }
+
+  // Status pip with enhanced visibility
+  drawStatusPip(ctx, px, accent, isWorking, agent.frame);
+
+  ctx.imageSmoothingEnabled = true;
+
+  // Name tag with role color accent
+  drawNameTag(ctx, px, agent.name, body, agent.role);
+
+  ctx.restore();
+}
+
+function drawWorkingAura(ctx: CanvasRenderingContext2D, px: number, frame: number, color: string): void {
+  ctx.save();
+  const particles = 8;
+  for (let i = 0; i < particles; i++) {
+    const angle = (frame * 0.5 + i * (Math.PI * 2 / particles)) % (Math.PI * 2);
+    const dist = 14 * px + Math.sin(frame * 3 + i) * 3 * px;
+    const pX = Math.cos(angle) * dist;
+    const pY = Math.sin(angle) * dist * 0.5 - 2 * px;
+    const alpha = 0.4 + 0.3 * Math.sin(frame * 4 + i);
+    
+    ctx.fillStyle = `rgba(${hexToRgb(color)}, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(pX, pY, px * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawFeet(ctx: CanvasRenderingContext2D, px: number, footOff: number, shade: string, headShape: string): void {
+  ctx.fillStyle = shade;
+  const footW = headShape === 'wide' ? 5 * px : 4 * px;
+  const footH = 3.5 * px;
+  roundRect(ctx, -6 * px + footOff, 7 * px, footW, footH, px);
+  ctx.fill();
+  roundRect(ctx, 2 * px - footOff, 7 * px, footW, footH, px);
+  ctx.fill();
+}
+
+function drawBody(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  body: string,
+  shade: string,
+  light: string,
+  accentType: string,
+  frame: number,
+  isWorking: boolean,
+): void {
+  // Main body shape
   ctx.fillStyle = body;
   ctx.beginPath();
-  ctx.moveTo(-6 * px, 5 * px);
-  ctx.lineTo(-7 * px, -2 * px);
-  ctx.quadraticCurveTo(-7 * px, -6 * px, -4 * px, -7 * px);
-  ctx.lineTo(4 * px, -7 * px);
-  ctx.quadraticCurveTo(7 * px, -6 * px, 7 * px, -2 * px);
-  ctx.lineTo(6 * px, 5 * px);
-  ctx.quadraticCurveTo(6 * px, 7 * px, 4 * px, 7 * px);
-  ctx.lineTo(-4 * px, 7 * px);
-  ctx.quadraticCurveTo(-6 * px, 7 * px, -6 * px, 5 * px);
+  ctx.moveTo(-7 * px, 6 * px);
+  ctx.lineTo(-8 * px, -2 * px);
+  ctx.quadraticCurveTo(-8 * px, -7 * px, -4.5 * px, -8 * px);
+  ctx.lineTo(4.5 * px, -8 * px);
+  ctx.quadraticCurveTo(8 * px, -7 * px, 8 * px, -2 * px);
+  ctx.lineTo(7 * px, 6 * px);
+  ctx.quadraticCurveTo(7 * px, 8 * px, 4.5 * px, 8 * px);
+  ctx.lineTo(-4.5 * px, 8 * px);
+  ctx.quadraticCurveTo(-7 * px, 8 * px, -7 * px, 6 * px);
   ctx.closePath();
   ctx.fill();
 
   // Body highlight
   ctx.fillStyle = light;
   ctx.beginPath();
-  ctx.moveTo(-5 * px, -6 * px);
-  ctx.quadraticCurveTo(0, -8 * px, 5 * px, -6 * px);
-  ctx.lineTo(4 * px, -4 * px);
-  ctx.quadraticCurveTo(0, -5 * px, -4 * px, -4 * px);
+  ctx.moveTo(-6 * px, -7 * px);
+  ctx.quadraticCurveTo(0, -9 * px, 6 * px, -7 * px);
+  ctx.lineTo(5 * px, -4 * px);
+  ctx.quadraticCurveTo(0, -5.5 * px, -5 * px, -4 * px);
   ctx.closePath();
   ctx.fill();
 
-  // Chest light / core (pulsing)
-  const corePulse = 0.7 + 0.3 * Math.sin(agent.frame * 2);
-  ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * corePulse})`;
-  ctx.beginPath();
-  ctx.arc(0, 0, 2.5 * px, 0, Math.PI * 2);
-  ctx.fill();
+  // Role-based body accent
+  if (accentType === 'badge') {
+    // Circular badge on chest
+    ctx.fillStyle = shade;
+    ctx.beginPath();
+    ctx.arc(-3.5 * px, 2 * px, 2 * px, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = light;
+    ctx.beginPath();
+    ctx.arc(-3.5 * px, 2 * px, 1.2 * px, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (accentType === 'stripe') {
+    // Diagonal stripe
+    ctx.fillStyle = shade;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-8 * px, -8 * px, 16 * px, 16 * px);
+    ctx.clip();
+    ctx.rotate(-0.4);
+    ctx.fillRect(-2 * px, -10 * px, 3 * px, 20 * px);
+    ctx.restore();
+  } else if (accentType === 'panel') {
+    // Tech panel lines
+    ctx.strokeStyle = shade;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-5 * px, -3 * px);
+    ctx.lineTo(-5 * px, 4 * px);
+    ctx.moveTo(5 * px, -3 * px);
+    ctx.lineTo(5 * px, 4 * px);
+    ctx.stroke();
+  } else if (accentType === 'glow' && isWorking) {
+    // Glowing body outline when working
+    const glowPulse = 0.3 + 0.3 * Math.sin(frame * 4);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${glowPulse})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
 
-  const coreGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 5 * px);
-  coreGlow.addColorStop(0, `rgba(200, 230, 255, ${0.4 * corePulse})`);
-  coreGlow.addColorStop(1, 'rgba(200, 230, 255, 0)');
+function drawCore(ctx: CanvasRenderingContext2D, px: number, frame: number, isWorking: boolean, isIdle: boolean): void {
+  const corePulse = isWorking 
+    ? 0.85 + 0.15 * Math.sin(frame * 5)
+    : isIdle
+      ? 0.5 + 0.2 * Math.sin(frame * 1.2)
+      : 0.7 + 0.3 * Math.sin(frame * 2);
+  
+  const coreSize = isWorking ? 3.5 * px : 2.8 * px;
+  
+  // Core glow (larger when working)
+  const glowSize = isWorking ? 8 * px : 5 * px;
+  const coreGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
+  coreGlow.addColorStop(0, `rgba(220, 240, 255, ${0.5 * corePulse})`);
+  coreGlow.addColorStop(0.5, `rgba(180, 220, 255, ${0.2 * corePulse})`);
+  coreGlow.addColorStop(1, 'rgba(150, 200, 255, 0)');
   ctx.fillStyle = coreGlow;
-  ctx.fillRect(-6 * px, -4 * px, 12 * px, 10 * px);
+  ctx.fillRect(-glowSize, -glowSize / 2, glowSize * 2, glowSize * 1.2);
 
-  // Arms (little nubs on sides)
-  const armSwing = agent.state === 'walking' ? Math.sin(agent.frame * 2.5) * px * 1.5 : 
-                   agent.state === 'building' ? Math.sin(agent.frame * 4) * px : 0;
+  // Core center
+  ctx.fillStyle = `rgba(255, 255, 255, ${0.95 * corePulse})`;
+  ctx.beginPath();
+  ctx.arc(0, 0, coreSize, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inner core detail
+  if (isWorking) {
+    ctx.fillStyle = `rgba(100, 200, 255, ${0.8 * corePulse})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, coreSize * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawArms(ctx: CanvasRenderingContext2D, px: number, armSwing: number, shade: string, isWorking: boolean): void {
   ctx.fillStyle = shade;
-  roundRect(ctx, -10 * px, -2 * px + armSwing, 3 * px, 6 * px, px);
+  const armW = 3.5 * px;
+  const armH = isWorking ? 7 * px : 6 * px;
+  
+  // Left arm
+  roundRect(ctx, -11 * px, -2 * px + armSwing, armW, armH, px);
   ctx.fill();
-  roundRect(ctx, 7 * px, -2 * px - armSwing, 3 * px, 6 * px, px);
+  
+  // Right arm
+  roundRect(ctx, 7.5 * px, -2 * px - armSwing, armW, armH, px);
   ctx.fill();
+}
 
-  // Head (big rounded dome - the cute factor)
-  const headY = -11 * px;
+function drawHead(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  headY: number,
+  body: string,
+  light: string,
+  headShape: string,
+): void {
   ctx.fillStyle = body;
   ctx.beginPath();
-  ctx.arc(0, headY, 8 * px, 0, Math.PI * 2);
-  ctx.fill();
+  
+  if (headShape === 'square') {
+    // More angular head
+    roundRect(ctx, -8 * px, headY - 7 * px, 16 * px, 14 * px, 3 * px);
+    ctx.fill();
+  } else if (headShape === 'tall') {
+    // Taller, narrower head
+    ctx.ellipse(0, headY, 7 * px, 9 * px, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (headShape === 'wide') {
+    // Wider, shorter head
+    ctx.ellipse(0, headY, 9 * px, 7 * px, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Default round head
+    ctx.arc(0, headY, 8.5 * px, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Head highlight
   ctx.fillStyle = light;
   ctx.beginPath();
-  ctx.arc(-2 * px, headY - 3 * px, 4 * px, 0, Math.PI * 2);
+  ctx.arc(-2.5 * px, headY - 3.5 * px, 4.5 * px, 0, Math.PI * 2);
   ctx.fill();
+}
 
-  // Visor (big expressive eyes area)
-  ctx.fillStyle = '#0a1020';
+function drawVisor(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  headY: number,
+  state: AgentState,
+  frame: number,
+  eyeStyle: string,
+): void {
+  // Visor background
+  ctx.fillStyle = '#080c18';
+  const visorW = eyeStyle === 'wide' ? 7 * px : eyeStyle === 'focused' ? 5.5 * px : 6 * px;
+  const visorH = eyeStyle === 'angular' ? 3.5 * px : 4.5 * px;
   ctx.beginPath();
-  ctx.ellipse(0, headY + px, 6 * px, 4 * px, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, headY + 1.5 * px, visorW, visorH, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Visor glow
-  const visorColor = agent.state === 'errored' ? 'rgba(248, 113, 113, 0.4)' :
-                     agent.state === 'waiting' ? 'rgba(251, 191, 36, 0.4)' :
-                     'rgba(100, 180, 255, 0.4)';
+  // Visor glow based on state
+  const visorColor = state === 'errored' ? 'rgba(248, 113, 113, 0.5)' :
+                     state === 'waiting' ? 'rgba(251, 191, 36, 0.5)' :
+                     state === 'building' ? 'rgba(100, 220, 255, 0.5)' :
+                     'rgba(80, 160, 220, 0.35)';
   ctx.fillStyle = visorColor;
   ctx.beginPath();
-  ctx.ellipse(0, headY + px, 5.5 * px, 3.5 * px, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, headY + 1.5 * px, visorW - 0.5 * px, visorH - 0.5 * px, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Eyes in visor
-  if (agent.state === 'errored') {
-    // X eyes for error state
-    ctx.strokeStyle = '#ff6b6b';
+  // Eyes based on state and style
+  if (state === 'errored') {
+    drawErrorEyes(ctx, px, headY);
+  } else {
+    drawNormalEyes(ctx, px, headY, frame, eyeStyle, state === 'building');
+  }
+}
+
+function drawErrorEyes(ctx: CanvasRenderingContext2D, px: number, headY: number): void {
+  ctx.strokeStyle = '#ff6b6b';
+  ctx.lineWidth = px * 0.9;
+  ctx.lineCap = 'round';
+  
+  // Left X
+  ctx.beginPath();
+  ctx.moveTo(-3.5 * px, headY);
+  ctx.lineTo(-1.5 * px, headY + 2 * px);
+  ctx.moveTo(-1.5 * px, headY);
+  ctx.lineTo(-3.5 * px, headY + 2 * px);
+  ctx.stroke();
+  
+  // Right X
+  ctx.beginPath();
+  ctx.moveTo(1.5 * px, headY);
+  ctx.lineTo(3.5 * px, headY + 2 * px);
+  ctx.moveTo(3.5 * px, headY);
+  ctx.lineTo(1.5 * px, headY + 2 * px);
+  ctx.stroke();
+}
+
+function drawNormalEyes(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  headY: number,
+  frame: number,
+  eyeStyle: string,
+  isWorking: boolean,
+): void {
+  const eyeBlink = Math.sin(frame * 0.4) > 0.96 ? 0.15 : 1;
+  const eyeY = headY + 1 * px;
+  
+  // Eye shapes based on style
+  ctx.fillStyle = '#ffffff';
+  
+  if (eyeStyle === 'angular') {
+    // Angular/triangular eyes
+    const eyeH = 2.5 * px * eyeBlink;
+    ctx.beginPath();
+    ctx.moveTo(-3.5 * px, eyeY - eyeH / 2);
+    ctx.lineTo(-1.5 * px, eyeY);
+    ctx.lineTo(-3.5 * px, eyeY + eyeH / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(3.5 * px, eyeY - eyeH / 2);
+    ctx.lineTo(1.5 * px, eyeY);
+    ctx.lineTo(3.5 * px, eyeY + eyeH / 2);
+    ctx.closePath();
+    ctx.fill();
+  } else if (eyeStyle === 'wide') {
+    // Wide horizontal eyes
+    ctx.beginPath();
+    ctx.ellipse(-2.5 * px, eyeY, 2 * px, 1.8 * px * eyeBlink, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(2.5 * px, eyeY, 2 * px, 1.8 * px * eyeBlink, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (eyeStyle === 'focused') {
+    // Smaller, focused eyes
+    ctx.beginPath();
+    ctx.ellipse(-2 * px, eyeY, 1.3 * px, 1.8 * px * eyeBlink, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(2 * px, eyeY, 1.3 * px, 1.8 * px * eyeBlink, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (eyeStyle === 'friendly') {
+    // Larger, rounder friendly eyes
+    ctx.beginPath();
+    ctx.arc(-2.5 * px, eyeY, 2 * px * Math.min(1, eyeBlink + 0.3), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(2.5 * px, eyeY, 2 * px * Math.min(1, eyeBlink + 0.3), 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Default round eyes
+    ctx.beginPath();
+    ctx.ellipse(-2.5 * px, eyeY, 1.7 * px, 2.2 * px * eyeBlink, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(2.5 * px, eyeY, 1.7 * px, 2.2 * px * eyeBlink, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Eye shine (more prominent when working)
+  const shineAlpha = isWorking ? 0.95 : 0.75;
+  ctx.fillStyle = `rgba(180, 230, 255, ${shineAlpha})`;
+  ctx.beginPath();
+  ctx.arc(-3 * px, eyeY - px * 0.5, px * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(2 * px, eyeY - px * 0.5, px * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawAntenna(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  headY: number,
+  shade: string,
+  accent: string,
+  style: string,
+  frame: number,
+  isWorking: boolean,
+): void {
+  const antennaY = headY - 9 * px;
+  const wobble = isWorking ? Math.sin(frame * 6) * 0.15 : Math.sin(frame * 1.5) * 0.05;
+  
+  ctx.save();
+  ctx.rotate(wobble);
+  
+  if (style === 'single') {
+    // Simple single antenna
+    ctx.fillStyle = shade;
+    ctx.fillRect(-px * 0.6, antennaY, px * 1.2, 4 * px);
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(0, antennaY - px, px * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (style === 'dual') {
+    // Two antennas
+    ctx.fillStyle = shade;
+    ctx.fillRect(-4 * px, antennaY + px, px, 3 * px);
+    ctx.fillRect(3 * px, antennaY + px, px, 3 * px);
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(-3.5 * px, antennaY, px * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(3.5 * px, antennaY, px * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (style === 'dish') {
+    // Dish/receiver antenna
+    ctx.fillStyle = shade;
+    ctx.fillRect(-px * 0.5, antennaY + 2 * px, px, 2 * px);
+    ctx.beginPath();
+    ctx.ellipse(0, antennaY + px, 3 * px, 1.5 * px, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(0, antennaY + px, px, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (style === 'spike') {
+    // Sharp spike antenna
+    ctx.fillStyle = shade;
+    ctx.beginPath();
+    ctx.moveTo(-px, antennaY + 3 * px);
+    ctx.lineTo(0, antennaY - 2 * px);
+    ctx.lineTo(px, antennaY + 3 * px);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(0, antennaY - 2 * px, px, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (style === 'loop') {
+    // Loop/halo antenna
+    ctx.strokeStyle = shade;
     ctx.lineWidth = px * 0.8;
     ctx.beginPath();
-    ctx.moveTo(-3 * px, headY - px);
-    ctx.lineTo(-1 * px, headY + px);
-    ctx.moveTo(-1 * px, headY - px);
-    ctx.lineTo(-3 * px, headY + px);
+    ctx.ellipse(0, antennaY, 3 * px, 2 * px, 0, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.fillStyle = accent;
     ctx.beginPath();
-    ctx.moveTo(1 * px, headY - px);
-    ctx.lineTo(3 * px, headY + px);
-    ctx.moveTo(3 * px, headY - px);
-    ctx.lineTo(1 * px, headY + px);
-    ctx.stroke();
-  } else {
-    // Happy/neutral eyes (white circles)
-    const eyeBlink = Math.sin(agent.frame * 0.5) > 0.95 ? 0.2 : 1;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.ellipse(-2.5 * px, headY + px * 0.5, 1.5 * px, 2 * px * eyeBlink, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(2.5 * px, headY + px * 0.5, 1.5 * px, 2 * px * eyeBlink, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eye shine
-    ctx.fillStyle = 'rgba(200, 230, 255, 0.8)';
-    ctx.beginPath();
-    ctx.arc(-3 * px, headY - px * 0.3, px * 0.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(2 * px, headY - px * 0.3, px * 0.5, 0, Math.PI * 2);
+    ctx.arc(0, antennaY - 2 * px, px * 1.2, 0, Math.PI * 2);
     ctx.fill();
   }
+  
+  // Glow when working
+  if (isWorking) {
+    const glowPulse = 0.5 + 0.5 * Math.sin(frame * 5);
+    ctx.fillStyle = `rgba(${hexToRgb(accent)}, ${0.4 * glowPulse})`;
+    ctx.beginPath();
+    ctx.arc(0, antennaY, px * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.restore();
+}
 
-  // Antenna (cute little bump on top)
-  ctx.fillStyle = shade;
-  ctx.fillRect(-px * 0.5, headY - 10 * px, px, 3 * px);
-  ctx.fillStyle = accent;
-  ctx.beginPath();
-  ctx.arc(0, headY - 10 * px, px * 1.2, 0, Math.PI * 2);
-  ctx.fill();
+function drawWorkingTool(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  armSwing: number,
+  frame: number,
+  toolType: string,
+  bodyColor: string,
+): void {
+  ctx.save();
+  ctx.translate(10 * px, -px - armSwing);
+  ctx.rotate(Math.sin(frame * 5) * 0.5);
 
-  // State indicators
-  if (agent.state === 'building') {
-    // Tool in hand (wrench)
-    ctx.save();
-    ctx.translate(9 * px, -1 * px - armSwing);
-    ctx.rotate(Math.sin(agent.frame * 4) * 0.4);
+  if (toolType === 'wrench') {
     ctx.fillStyle = '#9ca3af';
-    ctx.fillRect(0, -px, 6 * px, 2 * px);
+    ctx.fillRect(0, -px, 7 * px, 2.5 * px);
     ctx.fillStyle = '#6b7280';
-    ctx.fillRect(5 * px, -2 * px, 3 * px, 4 * px);
-    ctx.restore();
-
-    // Work sparks
-    if (Math.random() < 0.3) {
-      ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
-      ctx.beginPath();
-      ctx.arc(10 * px + Math.random() * 5, -5 * px + Math.random() * 10, 1, 0, Math.PI * 2);
-      ctx.fill();
+    ctx.fillRect(6 * px, -2 * px, 3.5 * px, 5 * px);
+  } else if (toolType === 'tablet') {
+    ctx.fillStyle = '#1e293b';
+    roundRect(ctx, 0, -2 * px, 6 * px, 5 * px, px);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(100, 200, 255, 0.6)';
+    ctx.fillRect(px, -px, 4 * px, 3 * px);
+  } else if (toolType === 'brush') {
+    ctx.fillStyle = '#8b5a2b';
+    ctx.fillRect(0, -px * 0.5, 6 * px, px * 1.5);
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.moveTo(6 * px, -px);
+    ctx.lineTo(9 * px, 0);
+    ctx.lineTo(6 * px, px);
+    ctx.closePath();
+    ctx.fill();
+  } else if (toolType === 'scanner') {
+    ctx.fillStyle = '#374151';
+    roundRect(ctx, 0, -1.5 * px, 5 * px, 4 * px, px);
+    ctx.fill();
+    const scanPulse = 0.5 + 0.5 * Math.sin(frame * 6);
+    ctx.fillStyle = `rgba(52, 211, 153, ${scanPulse})`;
+    ctx.fillRect(px, -px * 0.5, 3 * px, 2 * px);
+  } else if (toolType === 'clipboard') {
+    ctx.fillStyle = '#4a5568';
+    roundRect(ctx, 0, -2 * px, 5 * px, 6 * px, px * 0.5);
+    ctx.fill();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(px, -px, 3 * px, 4 * px);
+    ctx.fillStyle = '#64748b';
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(px * 1.5, -px * 0.5 + i * px * 1.2, 2 * px, px * 0.5);
     }
-  } else if (agent.state === 'waiting') {
-    // Thought dots
-    ctx.fillStyle = accent;
-    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(agent.frame * 3);
-    ctx.beginPath();
-    ctx.arc(-3 * px, headY - 14 * px, px, 0, Math.PI * 2);
+  } else if (toolType === 'chart') {
+    ctx.fillStyle = '#1e293b';
+    roundRect(ctx, 0, -2 * px, 6 * px, 5 * px, px);
     ctx.fill();
-    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(agent.frame * 3 + 1);
-    ctx.beginPath();
-    ctx.arc(0, headY - 15 * px, px, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(agent.frame * 3 + 2);
-    ctx.beginPath();
-    ctx.arc(3 * px, headY - 14 * px, px, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  } else if (agent.state === 'errored') {
-    // Alert symbol
-    ctx.fillStyle = accent;
-    ctx.font = `bold ${5 * px}px "Segoe UI", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('!', 0, headY - 13 * px);
+    ctx.fillStyle = '#22d3ee';
+    const barH = 2 * px * (0.5 + 0.5 * Math.sin(frame * 3));
+    ctx.fillRect(px, 2 * px - barH, px, barH);
+    ctx.fillStyle = '#a78bfa';
+    const barH2 = 2 * px * (0.5 + 0.5 * Math.sin(frame * 3 + 1));
+    ctx.fillRect(2.5 * px, 2 * px - barH2, px, barH2);
+    ctx.fillStyle = '#34d399';
+    const barH3 = 2 * px * (0.5 + 0.5 * Math.sin(frame * 3 + 2));
+    ctx.fillRect(4 * px, 2 * px - barH3, px, barH3);
   }
-
-  // Status pip (top-right)
-  ctx.fillStyle = accent;
-  ctx.beginPath();
-  ctx.arc(6 * px, -6 * px, px * 1.2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#0a1020';
-  ctx.lineWidth = 0.5;
-  ctx.stroke();
-
-  ctx.imageSmoothingEnabled = true;
-
-  // Name tag (holographic style)
-  const label = agent.name;
-  ctx.font = `600 ${Math.max(9, 3.2 * px)}px "Segoe UI", system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  const tw = ctx.measureText(label).width;
-
-  // Tag background
-  ctx.fillStyle = 'rgba(10, 15, 30, 0.85)';
-  roundRect(ctx, -tw / 2 - 6, 11 * px, tw + 12, 14, 3);
-  ctx.fill();
-
-  // Tag border glow
-  ctx.strokeStyle = `rgba(${hexToRgb(body)}, 0.4)`;
-  ctx.lineWidth = 1;
-  roundRect(ctx, -tw / 2 - 6, 11 * px, tw + 12, 14, 3);
-  ctx.stroke();
-
-  // Tag text
-  ctx.fillStyle = 'rgba(200, 220, 240, 0.95)';
-  ctx.fillText(label, 0, 11 * px + 10);
 
   ctx.restore();
+}
+
+function drawWorkSparks(ctx: CanvasRenderingContext2D, px: number, frame: number): void {
+  const sparkCount = 4;
+  for (let i = 0; i < sparkCount; i++) {
+    const sparkPhase = (frame * 3 + i * 1.5) % 2;
+    if (sparkPhase > 1) continue;
+    
+    const sparkX = 12 * px + Math.sin(frame * 4 + i * 2) * 4 * px;
+    const sparkY = -3 * px + Math.cos(frame * 3 + i * 1.5) * 5 * px - sparkPhase * 8 * px;
+    const sparkAlpha = 1 - sparkPhase;
+    
+    ctx.fillStyle = `rgba(255, 220, 100, ${0.9 * sparkAlpha})`;
+    ctx.beginPath();
+    ctx.arc(sparkX, sparkY, px * 0.8 * sparkAlpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawWaitingIndicator(ctx: CanvasRenderingContext2D, px: number, headY: number, accent: string, frame: number): void {
+  for (let i = 0; i < 3; i++) {
+    const dotAlpha = 0.4 + 0.6 * Math.sin(frame * 3 + i * 0.8);
+    ctx.fillStyle = accent;
+    ctx.globalAlpha = dotAlpha;
+    ctx.beginPath();
+    ctx.arc(-3 * px + i * 3 * px, headY - 14 * px, px * 1.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawErrorIndicator(ctx: CanvasRenderingContext2D, px: number, headY: number, accent: string): void {
+  ctx.fillStyle = accent;
+  ctx.font = `bold ${6 * px}px "Segoe UI", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('!', 0, headY - 13 * px);
+}
+
+function drawStatusPip(ctx: CanvasRenderingContext2D, px: number, accent: string, isWorking: boolean, frame: number): void {
+  const pipSize = isWorking ? px * 1.6 : px * 1.3;
+  const pipPulse = isWorking ? 0.8 + 0.2 * Math.sin(frame * 6) : 1;
+  
+  // Glow
+  if (isWorking) {
+    ctx.fillStyle = `rgba(${hexToRgb(accent)}, 0.3)`;
+    ctx.beginPath();
+    ctx.arc(7 * px, -7 * px, pipSize * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = pipPulse;
+  ctx.beginPath();
+  ctx.arc(7 * px, -7 * px, pipSize, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  
+  ctx.strokeStyle = '#0a1020';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+}
+
+function drawNameTag(ctx: CanvasRenderingContext2D, px: number, name: string, bodyColor: string, role?: string): void {
+  ctx.font = `600 ${Math.max(9, 3.4 * px)}px "Segoe UI", system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  const tw = ctx.measureText(name).width;
+
+  // Tag background
+  ctx.fillStyle = 'rgba(8, 12, 24, 0.9)';
+  roundRect(ctx, -tw / 2 - 8, 12 * px, tw + 16, 16, 4);
+  ctx.fill();
+
+  // Tag border with role color
+  ctx.strokeStyle = `rgba(${hexToRgb(bodyColor)}, 0.5)`;
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, -tw / 2 - 8, 12 * px, tw + 16, 16, 4);
+  ctx.stroke();
+
+  // Role indicator line
+  ctx.fillStyle = bodyColor;
+  ctx.fillRect(-tw / 2 - 6, 13 * px, 3, 12);
+
+  // Tag text
+  ctx.fillStyle = 'rgba(210, 225, 245, 0.98)';
+  ctx.fillText(name, 1, 12 * px + 12);
 }
 
 export function hitTestAgent(
