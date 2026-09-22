@@ -1,40 +1,49 @@
 import './styles/main.css';
+import * as THREE from 'three';
 import { fetchColony, fetchLogs, fetchNextLog, fetchThreads, fetchTeam, type AppMode } from './api';
 import { appendLogLine, renderLogLines, setLogModeLabel } from './ui/logs';
 import { hideAgentPanel, showAgentPanel } from './ui/panel';
 import {
-  drawAgent,
-  drawSites,
-  hitTestAgent,
   syncAgentsFromThreads,
   updateAgents,
 } from './world/agents';
-import { drawGarage } from './world/garage';
 import type { Agent, LogLinePayload, Site, TeamMember } from './world/types';
+import {
+  createWorld3D,
+  resizeWorld3D,
+  createGarage,
+  updateGarage,
+  createAgent3D,
+  updateAgent3D,
+  setAgentSelected,
+  type World3DContext,
+  type GarageElements,
+  type Agent3D,
+} from './world3d';
 
+const stage = document.getElementById('stage')!;
 const canvas = document.getElementById('world') as HTMLCanvasElement;
-const ctx = canvas.getContext('2d')!;
+canvas.style.display = 'none';
 
 let mode: AppMode = 'demo';
 let agents: Agent[] = [];
 let sites: Site[] = [];
 let logCache: LogLinePayload[] = [];
 let selectedId: string | null = null;
-let parallax = 0;
 let running = true;
 let lastTs = 0;
-let globalTime = 0;
+
+let world3d: World3DContext | null = null;
+let garage: GarageElements | null = null;
+let agents3d: Map<string, Agent3D> = new Map();
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
 
 function resize(): void {
-  const stage = document.getElementById('stage')!;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = stage.clientWidth;
-  const h = stage.clientHeight;
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(h * dpr);
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (world3d) {
+    resizeWorld3D(world3d, stage);
+  }
 }
 
 function setStatusPill(text: string): void {
@@ -47,7 +56,7 @@ function setModeUI(m: AppMode): void {
   document.getElementById('btn-demo')!.classList.toggle('active', m === 'demo');
   document.getElementById('btn-live')!.classList.toggle('active', m === 'live');
   document.getElementById('btn-team')!.classList.toggle('active', m === 'team');
-  
+
   const labels: Record<AppMode, string> = {
     demo: 'Demo stream',
     live: 'Live harness',
@@ -90,10 +99,10 @@ function applyTeamStatus(team: TeamMember[]): void {
   for (const agent of agents) {
     const member = team.find((m) => m.id === agent.id || m.name.toLowerCase() === agent.name.toLowerCase());
     if (!member) continue;
-    
+
     agent.teamStatus = member.status;
     agent.threadTitle = member.currentTask || '';
-    
+
     if (member.status === 'working') {
       if (!agent.siteId && sites.length) {
         const site = sites[Math.floor(Math.random() * sites.length)];
@@ -131,7 +140,7 @@ async function refreshThreads(): Promise<void> {
       }
       return;
     }
-    
+
     const result = await fetchThreads(mode);
     syncAgentsFromThreads(agents, result.threads, sites);
     if (mode === 'live') {
@@ -159,48 +168,93 @@ async function refreshLogs(): Promise<void> {
   }
 }
 
+function init3DWorld(): void {
+  world3d = createWorld3D(stage);
+
+  garage = createGarage(world3d.scene, sites);
+
+  for (const agent of agents) {
+    const agent3d = createAgent3D(agent);
+    agents3d.set(agent.id, agent3d);
+    world3d.scene.add(agent3d.group);
+  }
+
+  world3d.renderer.domElement.addEventListener('click', onCanvasClick);
+  world3d.renderer.domElement.addEventListener('pointermove', onPointerMove);
+  world3d.renderer.domElement.style.cursor = 'grab';
+}
+
 function frame(ts: number): void {
-  if (!running) return;
+  if (!running || !world3d || !garage) return;
+
   const dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0.016;
   lastTs = ts;
-  globalTime = ts / 1000;
+  const time = ts / 1000;
 
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-
-  parallax += dt * 0.08;
   updateAgents(agents, sites, dt);
 
-  // Draw the garage environment
-  drawGarage(ctx, w, h, globalTime, parallax);
-  
-  // Draw workstations with time parameter for animations
-  drawSites(ctx, sites, w, h, globalTime);
+  updateGarage(garage, time, sites);
 
-  // Depth sort: farther agents (lower y) drawn first
-  const sorted = [...agents].sort((a, b) => a.y - b.y);
-  for (const agent of sorted) {
-    drawAgent(ctx, agent, w, h, agent.id === selectedId);
+  for (const agent of agents) {
+    const agent3d = agents3d.get(agent.id);
+    if (agent3d) {
+      updateAgent3D(agent3d, agent, sites, time, dt);
+      setAgentSelected(agent3d, agent.id === selectedId);
+    }
   }
+
+  world3d.controls.update();
+
+  world3d.renderer.render(world3d.scene, world3d.camera);
 
   requestAnimationFrame(frame);
 }
 
 function onCanvasClick(ev: MouseEvent): void {
-  const rect = canvas.getBoundingClientRect();
-  const mx = ev.clientX - rect.left;
-  const my = ev.clientY - rect.top;
-  const hit = hitTestAgent(agents, mx, my, canvas.clientWidth, canvas.clientHeight);
-  if (hit) {
-    selectedId = hit.id;
-    const related = logCache.filter((l) => l.threadId === hit.id || l.agentName === hit.name);
-    showAgentPanel(hit, related.length ? related : logCache.slice(-6));
-    void fetchLogs(mode, hit.id).then(({ lines }) => {
-      showAgentPanel(hit, lines);
-    });
-  } else {
-    selectedId = null;
-    hideAgentPanel();
+  if (!world3d) return;
+
+  const rect = world3d.renderer.domElement.getBoundingClientRect();
+  mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, world3d.camera);
+
+  const agentGroups: THREE.Object3D[] = [];
+  for (const agent3d of agents3d.values()) {
+    agentGroups.push(agent3d.group);
+  }
+
+  const intersects = raycaster.intersectObjects(agentGroups, true);
+
+  if (intersects.length > 0) {
+    let hitObject = intersects[0].object;
+    while (hitObject.parent && !hitObject.userData.agentId) {
+      hitObject = hitObject.parent;
+    }
+
+    const agentId = hitObject.userData.agentId;
+    if (agentId) {
+      const hit = agents.find((a) => a.id === agentId);
+      if (hit) {
+        selectedId = hit.id;
+        const related = logCache.filter((l) => l.threadId === hit.id || l.agentName === hit.name);
+        showAgentPanel(hit, related.length ? related : logCache.slice(-6));
+        void fetchLogs(mode, hit.id).then(({ lines }) => {
+          showAgentPanel(hit, lines);
+        });
+        return;
+      }
+    }
+  }
+
+  selectedId = null;
+  hideAgentPanel();
+}
+
+function onPointerMove(_ev: PointerEvent): void {
+  if (!world3d) return;
+  if (world3d.controls.enabled) {
+    world3d.renderer.domElement.style.cursor = 'grab';
   }
 }
 
@@ -216,7 +270,6 @@ async function tickDemoLog(): Promise<void> {
 }
 
 async function init(): Promise<void> {
-  resize();
   window.addEventListener('resize', resize);
 
   document.getElementById('btn-demo')!.addEventListener('click', () => {
@@ -238,20 +291,15 @@ async function init(): Promise<void> {
     selectedId = null;
     hideAgentPanel();
   });
-  canvas.addEventListener('click', onCanvasClick);
 
-  canvas.addEventListener('pointermove', (ev) => {
-    const rect = canvas.getBoundingClientRect();
-    const nx = (ev.clientX - rect.left) / rect.width - 0.5;
-    parallax += nx * 0.006;
-  });
-
-  setModeUI('team'); // Default to Team mode
+  setModeUI('team');
   await loadWorld();
+
+  init3DWorld();
+
   await refreshThreads();
   await refreshLogs();
 
-  // Start some agents working for demo effect
   for (let i = 0; i < agents.length; i++) {
     if (i % 2 === 0 && agents[i].siteId) {
       agents[i].state = 'walking';
