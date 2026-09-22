@@ -392,3 +392,462 @@ body {
     padding: 0 0.75rem;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   AAA CONSOLE BOOT SEQUENCE
+   Immersive "next-gen console title" experience
+   ══════════════════════════════════════════════════════════════ */
+
+#boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#boot-screen.boot-exit {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Layered backgrounds */
+.boot-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.boot-dark {
+  background: radial-gradient(ellipse 120% 100% at 50% 50%, #080a10 0%, #000 100%);
+}
+
+.boot-vignette {
+  background: radial-gradient(ellipse 80% 70% at 50% 50%, transparent 0%, rgba(0,0,0,0.6) 100%);
+}
+
+.boot-noise {
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  animation: bootNoise 0.3s steps(3) infinite;
+}
+
+@keyframes bootNoise {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(-5px, 5px); }
+  66% { transform: translate(5px, -5px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Content container */
+.boot-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+}
+
+/* ── Logo Phase ── */
+.boot-logo-section {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+#boot-screen[data-phase="logo"] .boot-logo-section {
+  opacity: 1;
+}
+
+.studio-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.studio-icon {
+  width: 100px;
+  height: 100px;
+}
+
+.hex-icon {
+  width: 100%;
+  height: 100%;
+}
+
+.hex-outline {
+  animation: hexPulse 2s ease-in-out infinite;
+}
+
+.hex-core {
+  animation: corePulse 1.5s ease-in-out infinite;
+}
+
+.hex-center {
+  animation: centerGlow 1s ease-in-out infinite;
+}
+
+@keyframes hexPulse {
+  0%, 100% { opacity: 0.8; stroke-width: 2; }
+  50% { opacity: 1; stroke-width: 2.5; }
+}
+
+@keyframes corePulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes centerGlow {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
+}
+
+.studio-name {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.studio-main {
+  font-family: var(--ui);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(96, 165, 250, 0.5);
+}
+
+.studio-sub {
+  font-family: var(--font);
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(147, 197, 253, 0.7);
+}
+
+/* ── Title Phase ── */
+.boot-title-section {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.8s ease;
+}
+
+#boot-screen[data-phase="title"] .boot-title-section,
+#boot-screen[data-phase="flyIn"] .boot-title-section {
+  opacity: 1;
+}
+
+.title-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.game-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.9;
+  margin: 0;
+}
+
+.title-line {
+  font-family: var(--ui);
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 
+    0 0 60px rgba(96, 165, 250, 0.6),
+    0 0 120px rgba(96, 165, 250, 0.3),
+    0 4px 20px rgba(0, 0, 0, 0.8);
+}
+
+.title-bot {
+  font-size: clamp(4rem, 15vw, 10rem);
+  letter-spacing: 0.25em;
+  animation: titleSlideIn 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.title-crossing {
+  font-size: clamp(2rem, 8vw, 5rem);
+  letter-spacing: 0.5em;
+  color: rgba(147, 197, 253, 0.95);
+  animation: titleSlideIn 1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+
+@keyframes titleSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.title-subtitle {
+  font-family: var(--font);
+  font-size: clamp(0.6rem, 2vw, 0.9rem);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.8);
+  margin-top: 1.5rem;
+  animation: subtitleFade 1s ease 0.4s both;
+}
+
+@keyframes subtitleFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.title-prompt {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 4rem;
+  animation: promptFade 0.8s ease 0.8s both;
+}
+
+@keyframes promptFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 0.8; transform: translateY(0); }
+}
+
+.prompt-text, .prompt-alt {
+  font-family: var(--font);
+  font-size: clamp(0.65rem, 1.5vw, 0.8rem);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(96, 165, 250, 0.9);
+}
+
+.prompt-separator {
+  color: rgba(96, 165, 250, 0.4);
+}
+
+.title-footer {
+  position: absolute;
+  bottom: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  animation: footerFade 1s ease 1s both;
+}
+
+@keyframes footerFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.footer-line {
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.3), transparent);
+}
+
+.footer-text {
+  font-family: var(--font);
+  font-size: 0.55rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(100, 116, 139, 0.6);
+  white-space: nowrap;
+}
+
+/* ── Skip Button ── */
+.boot-skip {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: rgba(20, 26, 36, 0.8);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 6px;
+  color: rgba(148, 163, 184, 0.8);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.boot-skip:hover {
+  background: rgba(30, 38, 54, 0.9);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: rgba(226, 232, 240, 0.95);
+}
+
+.boot-skip kbd {
+  padding: 0.2rem 0.4rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(96, 165, 250, 0.15);
+  border-radius: 3px;
+  font-family: var(--font);
+  font-size: 0.55rem;
+  color: rgba(96, 165, 250, 0.7);
+}
+
+/* ── Letterbox Bars ── */
+.boot-letterbox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8%;
+  background: #000;
+  z-index: 5;
+  transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.boot-letterbox.top {
+  top: 0;
+}
+
+.boot-letterbox.bottom {
+  bottom: 0;
+}
+
+#boot-screen[data-phase="flyIn"] .boot-letterbox {
+  height: 0;
+}
+
+/* ── Phase Transitions ── */
+#boot-screen[data-phase="init"] .boot-content {
+  opacity: 0;
+}
+
+#boot-screen[data-phase="logo"] .boot-content {
+  opacity: 1;
+}
+
+#boot-screen[data-phase="title"] .boot-logo-section {
+  opacity: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ENHANCED UI TRANSITIONS (Post-boot)
+   ══════════════════════════════════════════════════════════════ */
+
+#app {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+#app.loaded {
+  opacity: 1;
+}
+
+/* Entrance animations for UI elements after boot */
+#app.loaded #topbar {
+  animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+#app.loaded #log-panel {
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+#app.loaded #stage {
+  animation: fadeScale 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeScale {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── Boot Screen Responsive ── */
+@media (max-width: 720px) {
+  .boot-skip {
+    bottom: 1rem;
+    right: 1rem;
+    padding: 0.5rem 0.8rem;
+  }
+  
+  .title-prompt {
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 3rem;
+  }
+  
+  .prompt-separator {
+    display: none;
+  }
+  
+  .title-footer {
+    bottom: 10%;
+  }
+  
+  .footer-line {
+    width: 30px;
+  }
+  
+  .studio-icon {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .studio-main {
+    font-size: 1.2rem;
+    letter-spacing: 0.3em;
+  }
+}
