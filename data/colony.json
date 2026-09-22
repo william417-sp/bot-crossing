@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "theme": "dubai-desert",
+  "sites": [
+    { "id": "site-alpha", "name": "Scaffold α", "x": 0.28, "y": 0.62, "kind": "scaffold" },
+    { "id": "site-beta", "name": "Tent Camp β", "x": 0.55, "y": 0.58, "kind": "tent" },
+    { "id": "site-gamma", "name": "Scan Tower γ", "x": 0.72, "y": 0.68, "kind": "tower" },
+    { "id": "site-delta", "name": "Oasis Depot δ", "x": 0.42, "y": 0.72, "kind": "depot" }
+  ],
+  "agents": [
+    { "id": "mock-claude-1", "name": "Claude", "x": 0.22, "y": 0.55, "color": "#7dd3fc" },
+    { "id": "mock-cursor-1", "name": "Cursor", "x": 0.48, "y": 0.52, "color": "#a78bfa" },
+    { "id": "mock-builder-1", "name": "Builder", "x": 0.60, "y": 0.66, "color": "#fbbf24" },
+    { "id": "mock-scout-1", "name": "Scout", "x": 0.75, "y": 0.50, "color": "#34d399" },
+    { "id": "mock-dune-1", "name": "Dune", "x": 0.35, "y": 0.70, "color": "#fb923c" },
+    { "id": "mock-oasis-1", "name": "Oasis", "x": 0.40, "y": 0.48, "color": "#2dd4bf" },
+    { "id": "mock-falcon-1", "name": "Falcon", "x": 0.68, "y": 0.60, "color": "#f87171" },
+    { "id": "mock-mirage-1", "name": "Mirage", "x": 0.52, "y": 0.74, "color": "#e879f9" }
+  ]
+}

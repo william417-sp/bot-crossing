@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bot Crossing — AgencyOS</title>
+    <meta name="theme-color" content="#0c0806" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect fill='%230c0806' width='32' height='32'/><rect x='7' y='7' width='18' height='18' rx='2' fill='none' stroke='%23e8a84a' stroke-width='1.5'/><circle cx='16' cy='16' r='2.5' fill='%23e8a84a'/></svg>" />
+  </head>
+  <body>
+    <div id="app">
+      <header id="topbar">
+        <div class="brand">
+          <span class="logo" aria-hidden="true">◈</span>
+          <h1>Bot Crossing</h1>
+          <span class="tag">Desert colony</span>
+        </div>
+        <div class="mode-toggle" role="group" aria-label="Mode">
+          <button type="button" id="btn-demo" class="mode-btn active" data-mode="demo">Demo</button>
+          <button type="button" id="btn-live" class="mode-btn" data-mode="live">Live</button>
+        </div>
+        <div id="status-pill" class="pill">demo · mock harness</div>
+      </header>
+      <main id="stage">
+        <canvas id="world" aria-label="Desert colony canvas"></canvas>
+        <aside id="agent-panel" class="panel hidden" aria-live="polite">
+          <button type="button" id="panel-close" class="close-btn" aria-label="Close">×</button>
+          <h2 id="panel-title">Agent</h2>
+          <div id="panel-meta"></div>
+          <h3>Recent activity</h3>
+          <ul id="panel-logs"></ul>
+        </aside>
+      </main>
+      <aside id="log-panel" class="panel">
+        <div class="log-header">
+          <h2>Workflow</h2>
+          <span id="log-mode-label">Demo stream</span>
+        </div>
+        <div id="log-stream"></div>
+      </aside>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
