@@ -1,10 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const TEAM_PATH = join(__dirname, '..', 'data', 'team.json');
-const STATUS_PATH = join(__dirname, '..', 'data', 'team-status.json');
+import { dirname } from 'node:path';
+import { TEAM_PATH, STATUS_PATH } from './paths.js';
 
 export type TeamStatus = 'idle' | 'working' | 'blocked';
 
@@ -78,10 +74,14 @@ function loadStatusStore(): TeamStatusStore {
 }
 
 function saveStatusStore(store: TeamStatusStore): void {
-  mkdirSync(dirname(STATUS_PATH), { recursive: true });
-  writeFileSync(STATUS_PATH, JSON.stringify(store, null, 2) + '\n', 'utf8');
   statusCache = store;
   lastStatusLoad = Date.now();
+  try {
+    mkdirSync(dirname(STATUS_PATH), { recursive: true });
+    writeFileSync(STATUS_PATH, JSON.stringify(store, null, 2) + '\n', 'utf8');
+  } catch {
+    // Read-only filesystem (e.g., Vercel) — cache update only, no persistence
+  }
 }
 
 export function getTeam(): { members: TeamMember[]; updatedAt: string } {

@@ -1,9 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+import { COLONY_PATH } from './paths.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_PATH = join(__dirname, '..', 'data', 'colony.json');
+const DATA_PATH = COLONY_PATH;
 
 export interface ColonySite {
   id: string;
@@ -43,7 +42,13 @@ export function loadColony(): ColonyLayout {
   return JSON.parse(raw) as ColonyLayout;
 }
 
-export function saveColony(layout: ColonyLayout): void {
-  mkdirSync(dirname(DATA_PATH), { recursive: true });
-  writeFileSync(DATA_PATH, JSON.stringify(layout, null, 2) + '\n', 'utf8');
+export function saveColony(layout: ColonyLayout): { ok: boolean; readOnly?: boolean } {
+  try {
+    mkdirSync(dirname(DATA_PATH), { recursive: true });
+    writeFileSync(DATA_PATH, JSON.stringify(layout, null, 2) + '\n', 'utf8');
+    return { ok: true };
+  } catch {
+    // Read-only filesystem (e.g., Vercel) — layout not persisted
+    return { ok: true, readOnly: true };
+  }
 }
