@@ -20,6 +20,7 @@ import {
   type GarageElements,
   type Agent3D,
 } from './world3d';
+import { startBootSequence, getFlyInProgress, isBootComplete, type BootPhase } from './boot/boot';
 
 const stage = document.getElementById('stage')!;
 const canvas = document.getElementById('world') as HTMLCanvasElement;
@@ -30,8 +31,14 @@ let agents: Agent[] = [];
 let sites: Site[] = [];
 let logCache: LogLinePayload[] = [];
 let selectedId: string | null = null;
-let running = true;
+let running = false;
 let lastTs = 0;
+let bootComplete = false;
+
+// Camera fly-in animation parameters
+const CAMERA_START = new THREE.Vector3(0, 8, 25);
+const CAMERA_END = new THREE.Vector3(0, 4, 12);
+const CAMERA_TARGET = new THREE.Vector3(0, 1, 0);
 
 let world3d: World3DContext | null = null;
 let garage: GarageElements | null = null;
@@ -191,6 +198,19 @@ function frame(ts: number): void {
   lastTs = ts;
   const time = ts / 1000;
 
+  // Handle camera fly-in animation during boot
+  const flyInProgress = getFlyInProgress();
+  if (!bootComplete && flyInProgress < 1) {
+    // Interpolate camera position from start to end
+    world3d.camera.position.lerpVectors(CAMERA_START, CAMERA_END, flyInProgress);
+    world3d.camera.lookAt(CAMERA_TARGET);
+    // Disable controls during fly-in
+    world3d.controls.enabled = false;
+  } else if (!bootComplete && flyInProgress >= 1) {
+    // Re-enable controls after fly-in
+    world3d.controls.enabled = true;
+  }
+
   updateAgents(agents, sites, dt);
 
   updateGarage(garage, time, sites);
@@ -203,7 +223,9 @@ function frame(ts: number): void {
     }
   }
 
-  world3d.controls.update();
+  if (bootComplete || flyInProgress >= 1) {
+    world3d.controls.update();
+  }
 
   world3d.composer.render();
 
@@ -269,7 +291,36 @@ async function tickDemoLog(): Promise<void> {
   }
 }
 
-async function init(): Promise<void> {
+function onBootProgress(phase: BootPhase, _progress: number): void {
+  // Start rendering the 3D world during fly-in phase (behind boot screen)
+  if (phase === 'flyIn' && !running && world3d) {
+    running = true;
+    requestAnimationFrame(frame);
+  }
+}
+
+function onBootComplete(): void {
+  bootComplete = true;
+  running = true;
+  
+  // Show the main UI with entrance animations
+  const app = document.getElementById('app');
+  if (app) {
+    app.classList.add('loaded');
+  }
+  
+  // Ensure controls are enabled
+  if (world3d) {
+    world3d.controls.enabled = true;
+  }
+  
+  // Start the render loop if not already running
+  if (!running) {
+    requestAnimationFrame(frame);
+  }
+}
+
+async function initWorld(): Promise<void> {
   window.addEventListener('resize', resize);
 
   document.getElementById('btn-demo')!.addEventListener('click', () => {
@@ -296,6 +347,13 @@ async function init(): Promise<void> {
   await loadWorld();
 
   init3DWorld();
+  
+  // Position camera for fly-in start
+  if (world3d) {
+    world3d.camera.position.copy(CAMERA_START);
+    world3d.camera.lookAt(CAMERA_TARGET);
+    world3d.controls.enabled = false;
+  }
 
   await refreshThreads();
   await refreshLogs();
@@ -306,9 +364,23 @@ async function init(): Promise<void> {
     }
   }
 
-  requestAnimationFrame(frame);
   setInterval(() => void refreshThreads(), 6000);
   setInterval(() => void tickDemoLog(), 2500);
+}
+
+async function init(): Promise<void> {
+  // Pre-load world data during boot sequence
+  const worldReady = initWorld();
+  
+  // Start the AAA console-style boot sequence
+  startBootSequence({
+    onComplete: async () => {
+      // Ensure world is loaded before completing boot
+      await worldReady;
+      onBootComplete();
+    },
+    onProgress: onBootProgress,
+  });
 }
 
 init().catch((err) => {
