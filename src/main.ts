@@ -1,5 +1,5 @@
 import './styles/main.css';
-import { fetchColony, fetchLogs, fetchNextLog, fetchThreads, type AppMode } from './api';
+import { fetchColony, fetchLogs, fetchNextLog, fetchThreads, fetchTeam, type AppMode } from './api';
 import { appendLogLine, renderLogLines, setLogModeLabel } from './ui/logs';
 import { hideAgentPanel, showAgentPanel } from './ui/panel';
 import {
@@ -9,8 +9,8 @@ import {
   syncAgentsFromThreads,
   updateAgents,
 } from './world/agents';
-import { drawDesert } from './world/desert';
-import type { Agent, LogLinePayload, Site } from './world/types';
+import { drawGarage } from './world/garage';
+import type { Agent, LogLinePayload, Site, TeamMember } from './world/types';
 
 const canvas = document.getElementById('world') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
@@ -23,6 +23,7 @@ let selectedId: string | null = null;
 let parallax = 0;
 let running = true;
 let lastTs = 0;
+let globalTime = 0;
 
 function resize(): void {
   const stage = document.getElementById('stage')!;
@@ -45,7 +46,14 @@ function setModeUI(m: AppMode): void {
   mode = m;
   document.getElementById('btn-demo')!.classList.toggle('active', m === 'demo');
   document.getElementById('btn-live')!.classList.toggle('active', m === 'live');
-  setLogModeLabel(m === 'demo' ? 'Demo stream' : 'Live harness');
+  document.getElementById('btn-team')!.classList.toggle('active', m === 'team');
+  
+  const labels: Record<AppMode, string> = {
+    demo: 'Demo stream',
+    live: 'Live harness',
+    team: 'Team activity',
+  };
+  setLogModeLabel(labels[m]);
 }
 
 async function loadWorld(): Promise<void> {
@@ -68,16 +76,62 @@ async function loadWorld(): Promise<void> {
       state: 'idle' as const,
       siteId: site?.id ?? null,
       threadTitle: '',
-      harness: 'mock',
+      harness: 'team',
       statusLabel: 'idle',
       frame: Math.random() * 10,
       speed: 0.08 + Math.random() * 0.04,
+      role: a.role,
+      teamStatus: 'idle' as const,
     };
   });
 }
 
+function applyTeamStatus(team: TeamMember[]): void {
+  for (const agent of agents) {
+    const member = team.find((m) => m.id === agent.id || m.name.toLowerCase() === agent.name.toLowerCase());
+    if (!member) continue;
+    
+    agent.teamStatus = member.status;
+    agent.threadTitle = member.currentTask || '';
+    
+    if (member.status === 'working') {
+      if (!agent.siteId && sites.length) {
+        const site = sites[Math.floor(Math.random() * sites.length)];
+        agent.siteId = site.id;
+        agent.targetX = site.x + (Math.random() - 0.5) * 0.04;
+        agent.targetY = site.y + (Math.random() - 0.5) * 0.03;
+      }
+      const dist = Math.hypot(agent.targetX - agent.x, agent.targetY - agent.y);
+      agent.state = dist > 0.02 ? 'walking' : 'building';
+      agent.statusLabel = 'working';
+    } else if (member.status === 'blocked') {
+      agent.state = 'waiting';
+      agent.statusLabel = 'blocked';
+    } else {
+      if (agent.state === 'building') {
+        agent.state = 'idle';
+        agent.siteId = null;
+      }
+      agent.statusLabel = 'idle';
+    }
+  }
+}
+
 async function refreshThreads(): Promise<void> {
   try {
+    if (mode === 'team') {
+      const teamData = await fetchTeam();
+      applyTeamStatus(teamData.members);
+      const working = teamData.members.filter((m) => m.status === 'working').length;
+      const blocked = teamData.members.filter((m) => m.status === 'blocked').length;
+      if (working > 0 || blocked > 0) {
+        setStatusPill(`team · ${working} working · ${blocked} blocked`);
+      } else {
+        setStatusPill('team · all idle');
+      }
+      return;
+    }
+    
     const result = await fetchThreads(mode);
     syncAgentsFromThreads(agents, result.threads, sites);
     if (mode === 'live') {
@@ -109,16 +163,19 @@ function frame(ts: number): void {
   if (!running) return;
   const dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0.016;
   lastTs = ts;
-  const t = ts / 1000;
+  globalTime = ts / 1000;
 
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
 
-  parallax += dt * 0.12;
+  parallax += dt * 0.08;
   updateAgents(agents, sites, dt);
 
-  drawDesert(ctx, w, h, t, parallax);
-  drawSites(ctx, sites, w, h);
+  // Draw the garage environment
+  drawGarage(ctx, w, h, globalTime, parallax);
+  
+  // Draw workstations with time parameter for animations
+  drawSites(ctx, sites, w, h, globalTime);
 
   // Depth sort: farther agents (lower y) drawn first
   const sorted = [...agents].sort((a, b) => a.y - b.y);
@@ -136,7 +193,7 @@ function onCanvasClick(ev: MouseEvent): void {
   const hit = hitTestAgent(agents, mx, my, canvas.clientWidth, canvas.clientHeight);
   if (hit) {
     selectedId = hit.id;
-    const related = logCache.filter((l) => l.threadId === hit.id);
+    const related = logCache.filter((l) => l.threadId === hit.id || l.agentName === hit.name);
     showAgentPanel(hit, related.length ? related : logCache.slice(-6));
     void fetchLogs(mode, hit.id).then(({ lines }) => {
       showAgentPanel(hit, lines);
@@ -148,9 +205,9 @@ function onCanvasClick(ev: MouseEvent): void {
 }
 
 async function tickDemoLog(): Promise<void> {
-  if (mode !== 'demo') return;
+  if (mode !== 'demo' && mode !== 'team') return;
   try {
-    const line = await fetchNextLog();
+    const line = await fetchNextLog(mode === 'team');
     logCache.push(line);
     appendLogLine(line);
   } catch {
@@ -172,6 +229,11 @@ async function init(): Promise<void> {
     void refreshThreads();
     void refreshLogs();
   });
+  document.getElementById('btn-team')!.addEventListener('click', () => {
+    setModeUI('team');
+    void refreshThreads();
+    void refreshLogs();
+  });
   document.getElementById('panel-close')!.addEventListener('click', () => {
     selectedId = null;
     hideAgentPanel();
@@ -181,23 +243,24 @@ async function init(): Promise<void> {
   canvas.addEventListener('pointermove', (ev) => {
     const rect = canvas.getBoundingClientRect();
     const nx = (ev.clientX - rect.left) / rect.width - 0.5;
-    parallax += nx * 0.008;
+    parallax += nx * 0.006;
   });
 
-  setModeUI('demo');
+  setModeUI('team'); // Default to Team mode
   await loadWorld();
   await refreshThreads();
   await refreshLogs();
 
-  for (const a of agents) {
-    if (a.siteId) {
-      a.state = 'walking';
+  // Start some agents working for demo effect
+  for (let i = 0; i < agents.length; i++) {
+    if (i % 2 === 0 && agents[i].siteId) {
+      agents[i].state = 'walking';
     }
   }
 
   requestAnimationFrame(frame);
-  setInterval(() => void refreshThreads(), 8000);
-  setInterval(() => void tickDemoLog(), 2800);
+  setInterval(() => void refreshThreads(), 6000);
+  setInterval(() => void tickDemoLog(), 2500);
 }
 
 init().catch((err) => {

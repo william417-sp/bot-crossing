@@ -1,14 +1,28 @@
 # Bot Crossing
 
-**Dubai-desert pixel colony** for AI agent workflows — a portfolio MVP with a local harness foundation.
+**Tony Stark–style garage HQ visualization** for William Rosado's AI agent team — a portfolio MVP with real-time bot status tracking.
 
-Watch pixel agents (Claude, Cursor, Builder, Scout, …) path across sand dunes and build at scaffolding sites while a workflow log streams beside them. Demo mode uses rich mock data; Live mode best-effort scans local Cursor / Claude Code session paths and falls back to mock when none exist.
+Watch cute Astro-inspired robot agents work at holographic workstations in a high-tech garage environment. Each bot represents a member of William's Grok Bot agency team, showing real-time status (working, idle, blocked) with playful animations and glowing holographic UI.
 
-> Original MIT-friendly project. Theme: Dubai desert (dunes, heat haze, skyline silhouettes, golden hour) — not space.
+> Original MIT-friendly project. Theme: Stark-style garage workshop (concrete floor, tool walls, holographic panels, glowing blue accents) — friendly robot crew energy.
+
+## Features
+
+- **Garage Environment:** Dark industrial backdrop with ceiling lights, tool racks, equipment bays, floating holograms, scan lines, and particle sparks
+- **Cute Robot Agents:** Astro Bot-inspired original designs with big visor eyes, bounce animations, and expressive states
+- **Team Roster:** William's actual Grok Bot team:
+  - Chief of Staff (coordinator)
+  - Client Sites (deployer)
+  - Front-End Designer (designer)
+  - Bot Crossing World (builder)
+  - Assistant (helper)
+  - Tradebot (analyst)
+- **Workstations:** Holographic desks, server racks, charging bays, fabricators with active task visualization
+- **Real-time Status:** Working bots animate at workstations; idle bots chill at charging pads; blocked bots show waiting indicators
 
 ## Requirements
 
-- **Node.js 20+** (developed on Node 20; does not require Node 22)
+- **Node.js 20+** (developed on Node 20)
 - npm 9+
 
 ## Quick start
@@ -22,7 +36,7 @@ npm run dev
 Open **http://localhost:5173**
 
 - UI + API share one process (`npm run dev`)
-- API: `GET /api/threads`, `GET /api/logs`, `GET /api/colony`
+- API: `GET /api/team`, `GET /api/threads`, `GET /api/logs`, `GET /api/colony`
 
 ### Production build
 
@@ -31,31 +45,89 @@ npm run build
 npm run preview
 ```
 
-## Demo vs Live
+## Modes
 
 | Mode | What happens |
-|------|----------------|
-| **Demo** | Always uses mock threads + streaming mock log lines. Agents animate against demo sessions. |
-| **Live** | Scans known local Cursor / Claude Code paths. If any sessions are found, those threads are returned. If none, safely falls back to mock (no errors, no uploads). |
+|------|--------------|
+| **Demo** | Mock threads + streaming log lines. Agents animate against demo sessions. |
+| **Live** | Scans local Cursor / Claude Code paths for real sessions. Falls back to mock if none found. |
+| **Team** | Shows William's team roster with rotating mock activity. Status can be updated via API. |
 
-Toggle in the top bar. The status pill shows `mock harness` or `live · N sessions` / `live · no sessions (mock)`.
+Toggle modes in the top bar. The status pill shows current mode and active bot count.
 
-**Privacy:** Live mode only reads local filesystem paths on your machine. Nothing is uploaded. No secrets are collected.
+## Team API
 
-## Harness adapters
+### Get team status
+```bash
+GET /api/team
+```
+Returns current status of all team members.
+
+### Update bot status
+```bash
+POST /api/team/:agentId/status
+Content-Type: application/json
+
+{
+  "status": "working" | "idle" | "blocked",
+  "task": "Optional current task description"
+}
+```
+Use this to integrate with real orchestration — mark bots as working when they start tasks.
+
+## Extending the Team
+
+Edit `data/team.json` to add or modify team members:
+
+```json
+{
+  "version": 1,
+  "theme": "stark-garage",
+  "workstations": [
+    { "id": "ws-new", "name": "New Station", "x": 0.5, "y": 0.6, "kind": "holodesk" }
+  ],
+  "agents": [
+    {
+      "id": "bot-new",
+      "name": "New Bot",
+      "role": "specialist",
+      "x": 0.5,
+      "y": 0.55,
+      "color": "#ff6b6b",
+      "description": "Does something cool"
+    }
+  ]
+}
+```
+
+Workstation kinds: `workbench`, `holodesk`, `server`, `charger`, `fabricator`
+
+## Project Structure
 
 ```
-server/harnesses/
-  types.ts    — shared Thread / LogLine model
-  mock.ts     — rich demo threads + log templates
-  cursor.ts   — best-effort Cursor transcript/project scan (Linux/macOS)
-  claude.ts   — best-effort Claude Code session dirs
-  index.ts    — merge; prefer live if any, else mock
+src/
+  world/
+    garage.ts   — Stark-style garage environment renderer
+    agents.ts   — Astro-inspired robot rendering + workstation drawing
+    types.ts    — TypeScript interfaces
+  ui/
+    panel.ts    — Agent detail panel
+    logs.ts     — Workflow log stream
+  styles/
+    main.css    — Sci-fi blue theme
+  api.ts        — API client
+  main.ts       — Canvas loop + mode switching
+
+server/
+  index.ts      — Express server + API routes
+  team.ts       — Team status management
+  colony.ts     — Colony layout persistence
+  harnesses/    — Mock, Cursor, Claude adapters
+
+data/
+  team.json     — Team roster configuration
+  colony.json   — Workstation + agent positions
 ```
-
-Paths probed (examples): `~/.cursor/projects`, `~/.claude/projects`, `~/.claude/sessions`, plus common macOS Application Support locations. Missing dirs → empty array.
-
-Colony layout is persisted in `data/colony.json` (sites + optional agent positions).
 
 ## Scripts
 

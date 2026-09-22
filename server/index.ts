@@ -11,6 +11,7 @@ import {
   makeMockLog,
 } from './harnesses/index.js';
 import { loadColony, saveColony, type ColonyLayout } from './colony.js';
+import { getTeam, getMockTeamActivity, updateAgentStatus } from './team.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -44,26 +45,62 @@ async function main() {
     }
   });
 
+  // Team API endpoints
+  app.get('/api/team', (_req, res) => {
+    try {
+      const team = getMockTeamActivity();
+      res.json(team);
+    } catch (err) {
+      console.error('[api/team]', err);
+      res.status(500).json({ error: 'Failed to load team' });
+    }
+  });
+
+  app.post('/api/team/:agentId/status', (req, res) => {
+    try {
+      const { agentId } = req.params;
+      const { status, task } = req.body as { status?: string; task?: string };
+      
+      if (!status || !['idle', 'working', 'blocked'].includes(status)) {
+        res.status(400).json({ error: 'Invalid status. Must be: idle, working, or blocked' });
+        return;
+      }
+      
+      const result = updateAgentStatus(agentId, status as 'idle' | 'working' | 'blocked', task);
+      if (!result.success) {
+        res.status(404).json({ error: result.error });
+        return;
+      }
+      
+      res.json({ ok: true, agentId, status, task });
+    } catch (err) {
+      console.error('[api/team/:id/status]', err);
+      res.status(500).json({ error: 'Failed to update status' });
+    }
+  });
+
   app.get('/api/logs', async (req, res) => {
     try {
       const threadId = req.query.threadId ? String(req.query.threadId) : undefined;
-      const mode = (String(req.query.mode || 'demo') === 'live' ? 'live' : 'demo') as
-        | 'demo'
-        | 'live';
+      const modeParam = String(req.query.mode || 'demo');
+      const mode = modeParam === 'live' ? 'live' : 'demo';
+      const teamMode = modeParam === 'team';
+      
       if (threadId) {
         const lines = await getLogsForThread(threadId, mode);
         res.json({ threadId, lines });
         return;
       }
-      res.json({ threadId: null, lines: getMockLogs(undefined, 30) });
+      res.json({ threadId: null, lines: getMockLogs(undefined, 30, teamMode) });
     } catch (err) {
       console.error('[api/logs]', err);
       res.status(500).json({ error: 'Failed to load logs' });
     }
   });
 
-  app.get('/api/logs/next', (_req, res) => {
-    res.json({ line: makeMockLog() });
+  app.get('/api/logs/next', (req, res) => {
+    const teamMode = req.query.team === '1';
+    res.json({ line: makeMockLog(undefined, teamMode) });
   });
 
   app.get('/api/colony', (_req, res) => {
@@ -112,8 +149,9 @@ async function main() {
   const server = createHttpServer(app);
   server.listen(PORT, () => {
     console.log(`\n  Bot Crossing  ·  http://localhost:${PORT}`);
-    console.log(`  API            ·  http://localhost:${PORT}/api/threads`);
-    console.log(`  Mode           ·  ${isProd ? 'production' : 'dev'}  ·  Node ${process.version}\n`);
+    console.log(`  Stark Garage  ·  William Rosado's Agency HQ`);
+    console.log(`  API           ·  http://localhost:${PORT}/api/team`);
+    console.log(`  Mode          ·  ${isProd ? 'production' : 'dev'}  ·  Node ${process.version}\n`);
   });
 }
 

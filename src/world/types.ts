@@ -1,5 +1,7 @@
 export type AgentState = 'idle' | 'walking' | 'building' | 'waiting' | 'errored';
 
+export type TeamStatus = 'idle' | 'working' | 'blocked';
+
 export interface Site {
   id: string;
   name: string;
@@ -25,13 +27,15 @@ export interface Agent {
   statusLabel: string;
   frame: number;
   speed: number;
+  role?: string;
+  teamStatus?: TeamStatus;
 }
 
 export interface ColonyPayload {
   version: number;
   theme: string;
   sites: Array<{ id: string; name: string; x: number; y: number; kind: string }>;
-  agents: Array<{ id: string; name: string; x: number; y: number; color: string }>;
+  agents: Array<{ id: string; name: string; x: number; y: number; color: string; role?: string }>;
 }
 
 export interface ThreadPayload {
@@ -49,6 +53,21 @@ export interface LogLinePayload {
   threadId: string;
   timestamp: string;
   harness: string;
+  agentName?: string;
   level: string;
   message: string;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  status: TeamStatus;
+  currentTask?: string;
+  lastActive?: string;
+}
+
+export interface TeamPayload {
+  members: TeamMember[];
+  updatedAt: string;
 }

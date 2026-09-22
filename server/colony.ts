@@ -19,6 +19,7 @@ export interface ColonyAgent {
   x: number;
   y: number;
   color: string;
+  role?: string;
 }
 
 export interface ColonyLayout {
@@ -32,7 +33,7 @@ export function loadColony(): ColonyLayout {
   if (!existsSync(DATA_PATH)) {
     const fallback: ColonyLayout = {
       version: 1,
-      theme: 'dubai-desert',
+      theme: 'stark-garage',
       sites: [],
       agents: [],
     };
