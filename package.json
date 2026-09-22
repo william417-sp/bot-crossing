@@ -17,6 +17,7 @@
   "dependencies": {
     "@types/three": "^0.186.0",
     "express": "^4.21.2",
+    "postprocessing": "^6.39.5",
     "three": "^0.186.0"
   },
   "devDependencies": {

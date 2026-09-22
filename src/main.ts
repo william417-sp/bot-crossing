@@ -205,7 +205,7 @@ function frame(ts: number): void {
 
   world3d.controls.update();
 
-  world3d.renderer.render(world3d.scene, world3d.camera);
+  world3d.composer.render();
 
   requestAnimationFrame(frame);
 }
