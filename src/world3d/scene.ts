@@ -1,10 +1,15 @@
 /**
  * Three.js scene setup with orbit controls, lighting, and camera
  * Tony Stark-style garage HQ with holographic atmosphere
+ * Premium PS5-style graphics: better lighting, mild bloom, crisp silhouettes
  */
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
 export interface World3DContext {
   scene: THREE.Scene;
@@ -12,12 +17,13 @@ export interface World3DContext {
   renderer: THREE.WebGLRenderer;
   controls: OrbitControls;
   clock: THREE.Clock;
+  composer: EffectComposer;
 }
 
 export function createWorld3D(container: HTMLElement): World3DContext {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x080b14);
-  scene.fog = new THREE.Fog(0x080b14, 8, 35);
+  scene.background = new THREE.Color(0x0c1018);
+  scene.fog = new THREE.Fog(0x0c1018, 12, 40);
 
   const width = container.clientWidth;
   const height = container.clientHeight;
@@ -36,11 +42,27 @@ export function createWorld3D(container: HTMLElement): World3DContext {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 1.4;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
   renderer.domElement.style.cursor = 'grab';
+
+  const composer = new EffectComposer(renderer);
+  
+  const renderPass = new RenderPass(scene, camera);
+  composer.addPass(renderPass);
+  
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(width, height),
+    0.35,
+    0.6,
+    0.7
+  );
+  composer.addPass(bloomPass);
+  
+  const outputPass = new OutputPass();
+  composer.addPass(outputPass);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -59,20 +81,24 @@ export function createWorld3D(container: HTMLElement): World3DContext {
 
   const clock = new THREE.Clock();
 
-  return { scene, camera, renderer, controls, clock };
+  return { scene, camera, renderer, controls, clock, composer };
 }
 
 function setupLighting(scene: THREE.Scene): void {
-  const ambient = new THREE.AmbientLight(0x1a2a40, 0.4);
+  const ambient = new THREE.AmbientLight(0x4060a0, 0.8);
   scene.add(ambient);
 
-  const mainLight = new THREE.DirectionalLight(0xc8dcff, 0.5);
-  mainLight.position.set(0, 8, 4);
+  const hemiLight = new THREE.HemisphereLight(0x6090d0, 0x203040, 0.6);
+  hemiLight.position.set(0, 10, 0);
+  scene.add(hemiLight);
+
+  const mainLight = new THREE.DirectionalLight(0xdce8ff, 1.2);
+  mainLight.position.set(2, 10, 5);
   mainLight.castShadow = true;
   mainLight.shadow.mapSize.width = 1024;
   mainLight.shadow.mapSize.height = 1024;
   mainLight.shadow.camera.near = 1;
-  mainLight.shadow.camera.far = 25;
+  mainLight.shadow.camera.far = 30;
   mainLight.shadow.camera.left = -15;
   mainLight.shadow.camera.right = 15;
   mainLight.shadow.camera.top = 15;
@@ -80,25 +106,37 @@ function setupLighting(scene: THREE.Scene): void {
   mainLight.shadow.bias = -0.001;
   scene.add(mainLight);
 
+  const fillLight = new THREE.DirectionalLight(0xa0c0e0, 0.4);
+  fillLight.position.set(-5, 5, -3);
+  scene.add(fillLight);
+
   const ceilingLightPositions = [-6, -2, 2, 6];
   for (const xPos of ceilingLightPositions) {
-    const light = new THREE.PointLight(0xa0c8ff, 1.5, 12);
+    const light = new THREE.PointLight(0xc0e0ff, 2.5, 14);
     light.position.set(xPos, 5.5, 0);
     light.castShadow = false;
     scene.add(light);
   }
 
-  const holoLight1 = new THREE.PointLight(0x3cf0ff, 0.8, 8);
+  const holoLight1 = new THREE.PointLight(0x50f8ff, 1.5, 10);
   holoLight1.position.set(-3, 2, 1);
   scene.add(holoLight1);
 
-  const holoLight2 = new THREE.PointLight(0x3cf0ff, 0.8, 8);
+  const holoLight2 = new THREE.PointLight(0x50f8ff, 1.5, 10);
   holoLight2.position.set(3, 2, -1);
   scene.add(holoLight2);
 
-  const rimLight = new THREE.DirectionalLight(0x4080c0, 0.3);
+  const holoLight3 = new THREE.PointLight(0x40e0ff, 1.0, 8);
+  holoLight3.position.set(0, 3, -3);
+  scene.add(holoLight3);
+
+  const rimLight = new THREE.DirectionalLight(0x60a0e0, 0.6);
   rimLight.position.set(0, 2, -8);
   scene.add(rimLight);
+
+  const floorBounce = new THREE.PointLight(0x304060, 0.5, 20);
+  floorBounce.position.set(0, 0.5, 2);
+  scene.add(floorBounce);
 }
 
 export function resizeWorld3D(ctx: World3DContext, container: HTMLElement): void {
@@ -107,6 +145,7 @@ export function resizeWorld3D(ctx: World3DContext, container: HTMLElement): void
   ctx.camera.aspect = width / height;
   ctx.camera.updateProjectionMatrix();
   ctx.renderer.setSize(width, height);
+  ctx.composer.setSize(width, height);
 }
 
 export function disposeWorld3D(ctx: World3DContext): void {

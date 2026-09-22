@@ -1,6 +1,7 @@
 /**
  * 3D Agent meshes - cute Astro Bot energy with role-distinct silhouettes
  * Round, expressive, bouncy robots with visible working vs idle states
+ * Idle agents do silly things: stretch, dance, spin wrench, nap, wave, etc.
  */
 
 import * as THREE from 'three';
@@ -13,6 +14,30 @@ const GARAGE_DEPTH = 16;
 type HeadShape = 'round' | 'square' | 'tall' | 'wide';
 type AntennaStyle = 'single' | 'dual' | 'dish' | 'spike' | 'loop' | 'none';
 type ToolType = 'wrench' | 'tablet' | 'brush' | 'scanner' | 'clipboard' | 'chart';
+
+type IdleAnimation = 
+  | 'none'
+  | 'stretch'
+  | 'dance'
+  | 'spin_wrench'
+  | 'nap'
+  | 'wave'
+  | 'polish_antenna'
+  | 'look_around'
+  | 'bounce_excited'
+  | 'head_tilt';
+
+const IDLE_ANIMATIONS: IdleAnimation[] = [
+  'stretch',
+  'dance',
+  'spin_wrench',
+  'nap',
+  'wave',
+  'polish_antenna',
+  'look_around',
+  'bounce_excited',
+  'head_tilt',
+];
 
 interface RoleVisual {
   headShape: HeadShape;
@@ -57,6 +82,11 @@ export interface Agent3D {
   sparks: THREE.Group;
   selectionRing: THREE.Mesh;
   nameSprite: THREE.Sprite;
+  idleSparks: THREE.Group;
+  zzzHologram: THREE.Group;
+  idleAnimation: IdleAnimation;
+  idleAnimationStartTime: number;
+  idleAnimationDuration: number;
 }
 
 export function createAgent3D(agent: Agent): Agent3D {
@@ -130,6 +160,16 @@ export function createAgent3D(agent: Agent): Agent3D {
   nameSprite.position.y = 1.3;
   group.add(nameSprite);
 
+  const idleSparks = createIdleSparksGroup();
+  idleSparks.position.set(0, 0.5, 0);
+  idleSparks.visible = false;
+  group.add(idleSparks);
+
+  const zzzHologram = createZzzHologram();
+  zzzHologram.position.set(0.25, 0.9, 0);
+  zzzHologram.visible = false;
+  group.add(zzzHologram);
+
   const worldX = (agent.x - 0.5) * GARAGE_WIDTH * 0.85;
   const worldZ = (agent.y - 0.5) * GARAGE_DEPTH * 0.7 - 1;
   group.position.set(worldX, 0, worldZ);
@@ -152,6 +192,11 @@ export function createAgent3D(agent: Agent): Agent3D {
     sparks,
     selectionRing,
     nameSprite,
+    idleSparks,
+    zzzHologram,
+    idleAnimation: 'none' as IdleAnimation,
+    idleAnimationStartTime: 0,
+    idleAnimationDuration: 0,
   };
 }
 
@@ -515,6 +560,68 @@ function createSparksGroup(): THREE.Group {
   return sparks;
 }
 
+function createIdleSparksGroup(): THREE.Group {
+  const sparks = new THREE.Group();
+
+  const colors = [0x70e8ff, 0xffc864, 0xa0ff90, 0xff90c0];
+  
+  for (let i = 0; i < 8; i++) {
+    const sparkMat = new THREE.MeshBasicMaterial({
+      color: colors[i % colors.length],
+      transparent: true,
+      opacity: 0.8,
+    });
+    const sparkGeo = new THREE.SphereGeometry(0.02, 6, 6);
+    const spark = new THREE.Mesh(sparkGeo, sparkMat);
+    spark.userData.idleSparkIndex = i;
+    spark.userData.orbitRadius = 0.25 + (i % 3) * 0.1;
+    spark.userData.orbitSpeed = 1.5 + Math.random();
+    spark.userData.phase = (i / 8) * Math.PI * 2;
+    sparks.add(spark);
+  }
+
+  return sparks;
+}
+
+function createZzzHologram(): THREE.Group {
+  const zzz = new THREE.Group();
+
+  const positions = [
+    { x: 0, y: 0, size: 0.08 },
+    { x: 0.08, y: 0.12, size: 0.06 },
+    { x: 0.14, y: 0.22, size: 0.045 },
+  ];
+
+  for (let i = 0; i < positions.length; i++) {
+    const { x, y, size } = positions[i];
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    
+    ctx.fillStyle = '#70e8ff';
+    ctx.font = 'bold 48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Z', 32, 32);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(size, size, 1);
+    sprite.position.set(x, y, 0);
+    sprite.userData.zIndex = i;
+    zzz.add(sprite);
+  }
+
+  return zzz;
+}
+
 function createSelectionRing(): THREE.Mesh {
   const ringGeo = new THREE.TorusGeometry(0.35, 0.02, 8, 32);
   const ringMat = new THREE.MeshBasicMaterial({
@@ -590,28 +697,163 @@ export function updateAgent3D(
   const isWorking = agent.state === 'building';
   const isWalking = agent.state === 'walking';
   const isIdle = agent.state === 'idle';
+  const isWaiting = agent.state === 'waiting';
+
+  if (isIdle || isWaiting) {
+    if (agent3d.idleAnimation === 'none' || time > agent3d.idleAnimationStartTime + agent3d.idleAnimationDuration) {
+      agent3d.idleAnimation = IDLE_ANIMATIONS[Math.floor(Math.random() * IDLE_ANIMATIONS.length)];
+      agent3d.idleAnimationStartTime = time;
+      agent3d.idleAnimationDuration = 3 + Math.random() * 4;
+    }
+  } else {
+    agent3d.idleAnimation = 'none';
+  }
 
   let bounce = 0;
   let bodyTilt = 0;
+  let headTilt = 0;
+  let armLeftRot = 0;
+  let armRightRot = 0;
+  let armLeftX = 0;
+  let armRightX = 0;
 
   if (isWalking) {
     bounce = Math.abs(Math.sin(time * 8)) * 0.08;
     bodyTilt = Math.sin(time * 8) * 0.1;
     agent3d.leftFoot.position.y = 0.02 + Math.max(0, Math.sin(time * 8)) * 0.05;
     agent3d.rightFoot.position.y = 0.02 + Math.max(0, -Math.sin(time * 8)) * 0.05;
+    armLeftRot = Math.sin(time * 8) * 0.4;
+    armRightRot = -Math.sin(time * 8) * 0.4;
   } else if (isWorking) {
     bounce = Math.abs(Math.sin(time * 10)) * 0.05 + Math.abs(Math.cos(time * 15)) * 0.02;
     bodyTilt = Math.sin(time * 12) * 0.05;
     agent3d.leftFoot.position.y = 0.02;
     agent3d.rightFoot.position.y = 0.02;
-  } else if (isIdle) {
-    bounce = Math.sin(time * 2) * 0.01;
-    bodyTilt = 0;
-    agent3d.leftFoot.position.y = 0.02;
-    agent3d.rightFoot.position.y = 0.02;
+    armLeftRot = Math.sin(time * 12) * 0.3;
+    armRightRot = -Math.sin(time * 12) * 0.3;
+  } else if (isIdle || isWaiting) {
+    const idleT = time - agent3d.idleAnimationStartTime;
+    const idleProgress = Math.min(idleT / agent3d.idleAnimationDuration, 1);
+    
+    switch (agent3d.idleAnimation) {
+      case 'stretch':
+        bounce = Math.sin(idleT * 1.5) * 0.08;
+        armLeftRot = -Math.PI * 0.6 + Math.sin(idleT * 2) * 0.1;
+        armRightRot = -Math.PI * 0.6 + Math.cos(idleT * 2) * 0.1;
+        armLeftX = -0.1;
+        armRightX = 0.1;
+        bodyTilt = Math.sin(idleT * 1.5) * 0.05;
+        break;
+        
+      case 'dance':
+        bounce = Math.abs(Math.sin(time * 6)) * 0.1;
+        bodyTilt = Math.sin(time * 4) * 0.15;
+        headTilt = Math.sin(time * 3) * 0.1;
+        armLeftRot = Math.sin(time * 6) * 0.6;
+        armRightRot = Math.sin(time * 6 + Math.PI) * 0.6;
+        agent3d.leftFoot.position.y = 0.02 + Math.max(0, Math.sin(time * 6)) * 0.04;
+        agent3d.rightFoot.position.y = 0.02 + Math.max(0, -Math.sin(time * 6)) * 0.04;
+        break;
+        
+      case 'spin_wrench':
+        bounce = Math.sin(time * 2) * 0.02;
+        armRightRot = Math.sin(time * 8) * 0.8;
+        armLeftRot = Math.sin(time * 2) * 0.1;
+        agent3d.group.rotation.y += Math.sin(idleT * 2) * 0.002;
+        break;
+        
+      case 'nap':
+        bounce = Math.sin(time * 0.8) * 0.02;
+        bodyTilt = 0.1;
+        headTilt = 0.15;
+        armLeftRot = 0.3;
+        armRightRot = 0.3;
+        agent3d.leftEye.scale.y = 0.1;
+        agent3d.rightEye.scale.y = 0.1;
+        agent3d.zzzHologram.visible = true;
+        agent3d.zzzHologram.children.forEach((z, i) => {
+          z.position.y = (positions => positions[i % 3])([0.12, 0.22, 0.30]) + Math.sin(time * 2 + i * 0.5) * 0.03;
+          (z as THREE.Sprite).material.opacity = 0.5 + 0.3 * Math.sin(time * 1.5 + i);
+        });
+        break;
+        
+      case 'wave':
+        bounce = Math.sin(time * 3) * 0.03;
+        armRightRot = -Math.PI * 0.5 + Math.sin(time * 8) * 0.3;
+        armRightX = 0.15;
+        headTilt = Math.sin(time * 4) * 0.1;
+        break;
+        
+      case 'polish_antenna':
+        bounce = Math.sin(time * 2) * 0.02;
+        armLeftRot = -Math.PI * 0.7;
+        armLeftX = 0.08;
+        const polishRotation = Math.sin(time * 10) * 0.1;
+        agent3d.antenna.rotation.z = polishRotation;
+        agent3d.antenna.rotation.x = Math.sin(time * 8) * 0.05;
+        break;
+        
+      case 'look_around':
+        bounce = Math.sin(time * 1.5) * 0.015;
+        headTilt = Math.sin(time * 0.8) * 0.25;
+        agent3d.head.rotation.y = Math.sin(time * 0.5) * 0.4;
+        armLeftRot = Math.sin(time * 1.5) * 0.1;
+        armRightRot = Math.sin(time * 1.5 + 0.5) * 0.1;
+        break;
+        
+      case 'bounce_excited':
+        bounce = Math.abs(Math.sin(time * 10)) * 0.15;
+        bodyTilt = Math.sin(time * 8) * 0.08;
+        armLeftRot = Math.abs(Math.sin(time * 10)) * 0.5 - 0.5;
+        armRightRot = Math.abs(Math.sin(time * 10)) * 0.5 - 0.5;
+        agent3d.leftFoot.position.y = 0.02 + Math.abs(Math.sin(time * 10)) * 0.06;
+        agent3d.rightFoot.position.y = 0.02 + Math.abs(Math.sin(time * 10)) * 0.06;
+        agent3d.idleSparks.visible = true;
+        break;
+        
+      case 'head_tilt':
+        bounce = Math.sin(time * 1.2) * 0.01;
+        headTilt = Math.sin(time * 0.6) * 0.3;
+        agent3d.head.rotation.y = Math.sin(time * 0.4) * 0.2;
+        break;
+        
+      default:
+        bounce = Math.sin(time * 2) * 0.01;
+        agent3d.leftFoot.position.y = 0.02;
+        agent3d.rightFoot.position.y = 0.02;
+    }
+    
+    if (agent3d.idleAnimation !== 'nap') {
+      agent3d.zzzHologram.visible = false;
+    }
+    if (agent3d.idleAnimation !== 'bounce_excited') {
+      agent3d.idleSparks.visible = false;
+    }
+    if (agent3d.idleAnimation !== 'look_around') {
+      agent3d.head.rotation.y *= 0.9;
+    }
   } else {
     agent3d.leftFoot.position.y = 0.02;
     agent3d.rightFoot.position.y = 0.02;
+    agent3d.zzzHologram.visible = false;
+    agent3d.idleSparks.visible = false;
+  }
+
+  if (agent3d.idleSparks.visible) {
+    agent3d.idleSparks.children.forEach((spark) => {
+      const s = spark as THREE.Mesh;
+      const idx = s.userData.idleSparkIndex;
+      const radius = s.userData.orbitRadius;
+      const speed = s.userData.orbitSpeed;
+      const phase = s.userData.phase;
+      
+      s.position.x = Math.cos(time * speed + phase) * radius;
+      s.position.z = Math.sin(time * speed + phase) * radius;
+      s.position.y = 0.3 + Math.sin(time * 2 + idx) * 0.15;
+      
+      const mat = s.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.5 + 0.4 * Math.sin(time * 3 + idx);
+    });
   }
 
   agent3d.body.position.y = 0.32 + bounce;
@@ -622,18 +864,25 @@ export function updateAgent3D(
   if (agent3d.tool) agent3d.tool.position.y = 0.35 + bounce;
   agent3d.sparks.position.y = 0.4 + bounce;
   agent3d.nameSprite.position.y = 1.3 + bounce;
+  agent3d.idleSparks.position.y = 0.5 + bounce;
+  agent3d.zzzHologram.position.y = 0.9 + bounce;
 
   agent3d.body.rotation.z = bodyTilt;
-  agent3d.head.rotation.z = bodyTilt * 0.5;
+  agent3d.head.rotation.z = headTilt || bodyTilt * 0.5;
 
-  const armSwing = isWalking ? Math.sin(time * 8) * 0.4 : isWorking ? Math.sin(time * 12) * 0.3 : Math.sin(time * 2) * 0.05;
-  agent3d.leftArm.rotation.x = armSwing;
-  agent3d.rightArm.rotation.x = -armSwing;
+  agent3d.leftArm.rotation.x = armLeftRot;
+  agent3d.rightArm.rotation.x = armRightRot;
   agent3d.leftArm.position.y = 0.32 + bounce;
   agent3d.rightArm.position.y = 0.32 + bounce;
+  agent3d.leftArm.position.x = -0.24 + armLeftX;
+  agent3d.rightArm.position.x = 0.24 + armRightX;
 
-  const antennaWobble = isWorking ? Math.sin(time * 15) * 0.15 : Math.sin(time * 3) * 0.05;
-  agent3d.antenna.rotation.z = antennaWobble;
+  const antennaWobble = isWorking ? Math.sin(time * 15) * 0.15 : 
+    (agent3d.idleAnimation === 'polish_antenna' ? 0 : Math.sin(time * 3) * 0.05);
+  if (agent3d.idleAnimation !== 'polish_antenna') {
+    agent3d.antenna.rotation.z = antennaWobble;
+    agent3d.antenna.rotation.x = 0;
+  }
 
   agent3d.antenna.traverse((obj) => {
     if (obj.userData.isAntennaTip) {
@@ -641,6 +890,9 @@ export function updateAgent3D(
       if (isWorking) {
         const pulse = 0.5 + 0.5 * Math.sin(time * 12);
         tipMat.opacity = pulse;
+        tipMat.transparent = true;
+      } else if (agent3d.idleAnimation === 'bounce_excited') {
+        tipMat.opacity = 0.6 + 0.4 * Math.sin(time * 8);
         tipMat.transparent = true;
       } else {
         tipMat.opacity = 1;
@@ -652,16 +904,27 @@ export function updateAgent3D(
   const coreGlow = agent3d.core.children[0] as THREE.Mesh;
   if (coreGlow?.userData.isCoreGlow) {
     const coreMat = coreGlow.material as THREE.MeshBasicMaterial;
-    const corePulse = isWorking ? 0.4 + 0.3 * Math.sin(time * 12) : isIdle ? 0.2 + 0.1 * Math.sin(time * 3) : 0.3 + 0.2 * Math.sin(time * 5);
+    let corePulse: number;
+    if (isWorking) {
+      corePulse = 0.4 + 0.3 * Math.sin(time * 12);
+    } else if (agent3d.idleAnimation === 'dance' || agent3d.idleAnimation === 'bounce_excited') {
+      corePulse = 0.4 + 0.3 * Math.sin(time * 8);
+    } else if (isIdle || isWaiting) {
+      corePulse = 0.2 + 0.1 * Math.sin(time * 3);
+    } else {
+      corePulse = 0.3 + 0.2 * Math.sin(time * 5);
+    }
     coreMat.opacity = corePulse;
-    const coreScale = isWorking ? 1.2 : 1;
+    const coreScale = isWorking ? 1.2 : (agent3d.idleAnimation === 'bounce_excited' ? 1.15 : 1);
     coreGlow.scale.setScalar(coreScale);
   }
 
-  const blink = Math.sin(time * 1.2) > 0.96;
-  const eyeScaleY = blink ? 0.15 : 1;
-  agent3d.leftEye.scale.y = eyeScaleY;
-  agent3d.rightEye.scale.y = eyeScaleY;
+  if (agent3d.idleAnimation !== 'nap') {
+    const blink = Math.sin(time * 1.2) > 0.96;
+    const eyeScaleY = blink ? 0.15 : 1;
+    agent3d.leftEye.scale.y = eyeScaleY;
+    agent3d.rightEye.scale.y = eyeScaleY;
+  }
 
   const statusColor = STATE_COLORS[agent.state];
   const pipMat = agent3d.statusPip.material as THREE.MeshBasicMaterial;
