@@ -1,7 +1,7 @@
 {
   "name": "bot-crossing",
   "version": "0.1.0",
-  "description": "Dubai-desert pixel colony for AI agent workflows — portfolio MVP + local harness foundation",
+  "description": "Stark-style garage HQ visualization for William Rosado's AI agent team — portfolio MVP + real-time bot status tracking",
   "private": true,
   "type": "module",
   "license": "MIT",

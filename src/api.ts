@@ -1,6 +1,6 @@
-import type { ColonyPayload, LogLinePayload, ThreadPayload } from './world/types';
+import type { ColonyPayload, LogLinePayload, TeamPayload, ThreadPayload } from './world/types';
 
-export type AppMode = 'demo' | 'live';
+export type AppMode = 'demo' | 'live' | 'team';
 
 export interface ThreadsResult {
   source: 'live' | 'mock';
@@ -16,6 +16,25 @@ export async function fetchThreads(mode: AppMode): Promise<ThreadsResult> {
   return res.json();
 }
 
+export async function fetchTeam(): Promise<TeamPayload> {
+  const res = await fetch('/api/team');
+  if (!res.ok) throw new Error(`team ${res.status}`);
+  return res.json();
+}
+
+export async function updateTeamStatus(
+  agentId: string,
+  status: 'idle' | 'working' | 'blocked',
+  task?: string,
+): Promise<void> {
+  const res = await fetch(`/api/team/${agentId}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, task }),
+  });
+  if (!res.ok) throw new Error(`team status ${res.status}`);
+}
+
 export async function fetchLogs(
   mode: AppMode,
   threadId?: string,
@@ -27,8 +46,9 @@ export async function fetchLogs(
   return res.json();
 }
 
-export async function fetchNextLog(): Promise<LogLinePayload> {
-  const res = await fetch('/api/logs/next');
+export async function fetchNextLog(teamMode = false): Promise<LogLinePayload> {
+  const url = teamMode ? '/api/logs/next?team=1' : '/api/logs/next';
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`logs/next ${res.status}`);
   const data = await res.json();
   return data.line as LogLinePayload;

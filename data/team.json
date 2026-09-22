@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "theme": "stark-garage",
+  "workstations": [
+    { "id": "ws-main", "name": "Main Bench", "x": 0.28, "y": 0.62, "kind": "workbench" },
+    { "id": "ws-holo", "name": "Holo Lab", "x": 0.52, "y": 0.56, "kind": "holodesk" },
+    { "id": "ws-server", "name": "Server Rack", "x": 0.72, "y": 0.64, "kind": "server" },
+    { "id": "ws-charge", "name": "Charging Bay", "x": 0.40, "y": 0.74, "kind": "charger" },
+    { "id": "ws-fab", "name": "Fab Station", "x": 0.62, "y": 0.72, "kind": "fabricator" }
+  ],
+  "agents": [
+    {
+      "id": "bot-cos",
+      "name": "Chief of Staff",
+      "role": "coordinator",
+      "x": 0.35,
+      "y": 0.58,
+      "color": "#60a5fa",
+      "description": "Orchestrates team workflow and task delegation"
+    },
+    {
+      "id": "bot-sites",
+      "name": "Client Sites",
+      "role": "deployer",
+      "x": 0.48,
+      "y": 0.52,
+      "color": "#34d399",
+      "description": "Manages client site deployments and updates"
+    },
+    {
+      "id": "bot-frontend",
+      "name": "Front-End Designer",
+      "role": "designer",
+      "x": 0.58,
+      "y": 0.66,
+      "color": "#f472b6",
+      "description": "Creates UI/UX designs and component styling"
+    },
+    {
+      "id": "bot-world",
+      "name": "Bot Crossing World",
+      "role": "builder",
+      "x": 0.68,
+      "y": 0.58,
+      "color": "#fbbf24",
+      "description": "Develops and maintains the Bot Crossing visualization"
+    },
+    {
+      "id": "bot-assistant",
+      "name": "Assistant",
+      "role": "helper",
+      "x": 0.42,
+      "y": 0.70,
+      "color": "#a78bfa",
+      "description": "General purpose helper for various tasks"
+    },
+    {
+      "id": "bot-trade",
+      "name": "Tradebot",
+      "role": "analyst",
+      "x": 0.75,
+      "y": 0.68,
+      "color": "#2dd4bf",
+      "description": "Handles trading analysis and market operations"
+    }
+  ]
+}

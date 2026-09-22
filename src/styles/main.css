@@ -1,24 +1,24 @@
 :root {
-  --ink: #0c0806;
-  --sand-deep: #14100c;
-  --sand-mid: #1e1812;
-  --sand-warm: #2a2018;
-  --gold: #e8a84a;
-  --gold-soft: #d4a05a;
-  --gold-dim: #8a6838;
-  --amber: #c4782a;
-  --text: #f0e6d8;
-  --text-dim: #9a8a78;
-  --text-mute: #6a5a4a;
-  --panel: rgba(12, 8, 6, 0.82);
-  --panel-solid: #14100c;
-  --border: rgba(232, 168, 74, 0.18);
-  --border-strong: rgba(232, 168, 74, 0.32);
+  --ink: #0a0c12;
+  --steel-deep: #0d1018;
+  --steel-mid: #141a24;
+  --steel-warm: #1e2636;
+  --holo: #60a5fa;
+  --holo-soft: #93c5fd;
+  --holo-dim: #3b5998;
+  --cyan: #22d3ee;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --text-mute: #64748b;
+  --panel: rgba(10, 15, 25, 0.88);
+  --panel-solid: #0d1018;
+  --border: rgba(96, 165, 250, 0.18);
+  --border-strong: rgba(96, 165, 250, 0.35);
   --error: #f87171;
   --ok: #34d399;
   --warn: #fbbf24;
-  --info: #7dd3fc;
-  --action: #d4a0e8;
+  --info: #60a5fa;
+  --action: #a78bfa;
   --font: "IBM Plex Mono", "SF Mono", "Cascadia Code", ui-monospace, monospace;
   --ui: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --radius: 8px;
@@ -44,7 +44,7 @@ body {
 
 #app {
   display: grid;
-  grid-template-rows: 44px 1fr 168px;
+  grid-template-rows: 48px 1fr 168px;
   grid-template-columns: 1fr;
   width: 100%;
   height: 100%;
@@ -56,7 +56,7 @@ body {
   align-items: center;
   gap: 1.25rem;
   padding: 0 1.15rem;
-  background: linear-gradient(180deg, #1a1410 0%, #120e0a 100%);
+  background: linear-gradient(180deg, #12161f 0%, #0a0c12 100%);
   border-bottom: 1px solid var(--border);
   z-index: 10;
 }
@@ -68,14 +68,14 @@ body {
 }
 
 .brand .logo {
-  color: var(--gold);
-  font-size: 0.85rem;
+  color: var(--holo);
+  font-size: 1rem;
   opacity: 0.9;
   letter-spacing: 0;
 }
 
 .brand h1 {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -88,6 +88,10 @@ body {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 500;
+  padding: 0.15rem 0.5rem;
+  background: rgba(96, 165, 250, 0.1);
+  border-radius: 3px;
+  border: 1px solid rgba(96, 165, 250, 0.15);
 }
 
 .mode-toggle {
@@ -96,14 +100,14 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .mode-btn {
   background: transparent;
   border: none;
   color: var(--text-mute);
-  padding: 0.3rem 0.9rem;
+  padding: 0.35rem 0.9rem;
   font-size: 0.6875rem;
   font-family: var(--font);
   font-weight: 500;
@@ -115,22 +119,22 @@ body {
 
 .mode-btn:hover {
   color: var(--text-dim);
-  background: rgba(232, 168, 74, 0.06);
+  background: rgba(96, 165, 250, 0.08);
 }
 
 .mode-btn.active {
-  background: rgba(232, 168, 74, 0.16);
-  color: var(--gold);
+  background: rgba(96, 165, 250, 0.2);
+  color: var(--holo);
 }
 
 .pill {
   font-family: var(--font);
   font-size: 0.625rem;
-  padding: 0.22rem 0.65rem;
+  padding: 0.25rem 0.7rem;
   border-radius: 999px;
   border: 1px solid var(--border);
-  color: var(--gold-dim);
-  background: rgba(232, 168, 74, 0.05);
+  color: var(--holo-dim);
+  background: rgba(96, 165, 250, 0.08);
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
@@ -139,7 +143,7 @@ body {
 #stage {
   position: relative;
   overflow: hidden;
-  background: var(--sand-deep);
+  background: var(--steel-deep);
 }
 
 #world {
@@ -152,8 +156,8 @@ body {
 .panel {
   background: var(--panel);
   border-color: var(--border);
-  backdrop-filter: blur(12px) saturate(1.1);
-  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
 }
 
 /* ── Agent side panel ── */
@@ -161,7 +165,7 @@ body {
   position: absolute;
   top: 14px;
   right: 14px;
-  width: min(300px, 88vw);
+  width: min(320px, 88vw);
   max-height: calc(100% - 28px);
   overflow: auto;
   padding: 1rem 1.1rem 1.15rem;
@@ -169,8 +173,8 @@ body {
   border-radius: var(--radius);
   z-index: 5;
   box-shadow:
-    0 16px 48px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 220, 160, 0.04);
+    0 16px 48px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(100, 180, 255, 0.06);
 }
 
 #agent-panel.hidden {
@@ -181,7 +185,7 @@ body {
   font-size: 0.9375rem;
   font-weight: 600;
   margin-bottom: 0.55rem;
-  color: var(--gold-soft);
+  color: var(--holo-soft);
   padding-right: 1.5rem;
   letter-spacing: 0.02em;
 }
@@ -219,7 +223,7 @@ body {
 
 #panel-meta .status {
   display: inline-block;
-  padding: 0.08rem 0.4rem;
+  padding: 0.1rem 0.45rem;
   border-radius: 3px;
   font-size: 0.6rem;
   text-transform: uppercase;
@@ -228,22 +232,24 @@ body {
 }
 
 #panel-meta .status.running,
-#panel-meta .status.building {
-  background: rgba(52, 211, 153, 0.12);
+#panel-meta .status.building,
+#panel-meta .status.working {
+  background: rgba(52, 211, 153, 0.15);
   color: var(--ok);
 }
-#panel-meta .status.waiting {
-  background: rgba(251, 191, 36, 0.12);
+#panel-meta .status.waiting,
+#panel-meta .status.blocked {
+  background: rgba(251, 191, 36, 0.15);
   color: var(--warn);
 }
 #panel-meta .status.errored {
-  background: rgba(248, 113, 113, 0.12);
+  background: rgba(248, 113, 113, 0.15);
   color: var(--error);
 }
 #panel-meta .status.idle,
 #panel-meta .status.done,
 #panel-meta .status.walking {
-  background: rgba(125, 211, 252, 0.1);
+  background: rgba(96, 165, 250, 0.12);
   color: var(--info);
 }
 
@@ -257,7 +263,7 @@ body {
 
 #panel-logs li {
   padding: 0.4rem 0;
-  border-bottom: 1px solid rgba(232, 168, 74, 0.07);
+  border-bottom: 1px solid rgba(96, 165, 250, 0.08);
   color: var(--text-dim);
 }
 
@@ -269,8 +275,8 @@ body {
   position: absolute;
   top: 10px;
   right: 10px;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -278,7 +284,7 @@ body {
   border: 1px solid transparent;
   border-radius: 4px;
   color: var(--text-mute);
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   cursor: pointer;
   line-height: 1;
   transition: color var(--ease), border-color var(--ease), background var(--ease);
@@ -287,7 +293,7 @@ body {
 .close-btn:hover {
   color: var(--text);
   border-color: var(--border);
-  background: rgba(232, 168, 74, 0.06);
+  background: rgba(96, 165, 250, 0.08);
 }
 
 /* ── Workflow log ── */
@@ -303,16 +309,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.4rem 1.15rem;
-  border-bottom: 1px solid rgba(232, 168, 74, 0.08);
-  background: rgba(0, 0, 0, 0.2);
+  padding: 0.45rem 1.15rem;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.1);
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .log-header h2 {
   font-size: 0.625rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--gold-dim);
+  color: var(--holo-dim);
   font-weight: 600;
 }
 
@@ -331,14 +337,14 @@ body {
   font-size: 0.6875rem;
   line-height: 1.5;
   scrollbar-width: thin;
-  scrollbar-color: rgba(232, 168, 74, 0.2) transparent;
+  scrollbar-color: rgba(96, 165, 250, 0.2) transparent;
 }
 
 .log-line {
   display: grid;
-  grid-template-columns: 64px 56px 1fr;
+  grid-template-columns: 64px 80px 1fr;
   gap: 0.75rem;
-  padding: 0.22rem 0;
+  padding: 0.24rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.025);
 }
 
@@ -348,7 +354,7 @@ body {
 }
 
 .log-line .harness {
-  color: var(--gold-dim);
+  color: var(--holo-dim);
   text-transform: lowercase;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -370,7 +376,7 @@ body {
 
 @media (max-width: 720px) {
   #app {
-    grid-template-rows: 44px 1fr 132px;
+    grid-template-rows: 48px 1fr 132px;
   }
   .log-line {
     grid-template-columns: 52px 1fr;

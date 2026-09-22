@@ -6,12 +6,16 @@ export function showAgentPanel(agent: Agent, logs: LogLinePayload[]): void {
   document.getElementById('panel-title')!.textContent = agent.name;
 
   const meta = document.getElementById('panel-meta')!;
+  const roleDisplay = agent.role || 'bot';
+  const taskDisplay = agent.threadTitle || '—';
+  
   meta.innerHTML = `
-    <div class="meta-row"><span class="meta-label">Session</span><span>${escapeHtml(agent.threadTitle || '—')}</span></div>
+    <div class="meta-row"><span class="meta-label">Role</span><span>${escapeHtml(roleDisplay)}</span></div>
+    <div class="meta-row"><span class="meta-label">Task</span><span>${escapeHtml(taskDisplay)}</span></div>
     <div class="meta-row"><span class="meta-label">Harness</span><span>${escapeHtml(agent.harness)}</span></div>
     <div class="meta-row"><span class="meta-label">State</span><span>
       <span class="status ${escapeHtml(agent.state)}">${escapeHtml(agent.state)}</span>
-      <span class="status ${escapeHtml(agent.statusLabel)}">${escapeHtml(agent.statusLabel)}</span>
+      ${agent.teamStatus ? `<span class="status ${escapeHtml(agent.teamStatus)}">${escapeHtml(agent.teamStatus)}</span>` : ''}
     </span></div>
   `;
 

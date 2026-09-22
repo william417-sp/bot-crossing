@@ -1,11 +1,11 @@
 /** Shared thread / session model for harness adapters */
 
-export type ThreadStatus = 'idle' | 'running' | 'waiting' | 'errored' | 'done';
+export type ThreadStatus = 'idle' | 'running' | 'waiting' | 'errored' | 'done' | 'working' | 'blocked';
 
 export interface Thread {
   id: string;
   title: string;
-  harness: 'mock' | 'cursor' | 'claude' | string;
+  harness: 'mock' | 'cursor' | 'claude' | 'team' | string;
   status: ThreadStatus;
   repo?: string;
   updatedAt: string; // ISO
@@ -20,6 +20,7 @@ export interface LogLine {
   harness: string;
   level: 'info' | 'warn' | 'error' | 'action';
   message: string;
+  agentName?: string;
 }
 
 export interface HarnessAdapter {

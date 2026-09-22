@@ -6,13 +6,15 @@ const STATE_FROM_THREAD: Record<string, AgentState> = {
   waiting: 'waiting',
   errored: 'errored',
   done: 'idle',
+  working: 'building',
+  blocked: 'waiting',
 };
 
 const STATE_ACCENT: Record<AgentState, string> = {
-  idle: '#7dd3fc',
-  walking: '#e8a84a',
+  idle: '#60a5fa',
+  walking: '#fbbf24',
   building: '#34d399',
-  waiting: '#fbbf24',
+  waiting: '#f59e0b',
   errored: '#f87171',
 };
 
@@ -115,6 +117,7 @@ export function drawSites(
   sites: Site[],
   w: number,
   h: number,
+  t: number,
 ): void {
   for (const site of sites) {
     const x = site.x * w;
@@ -122,20 +125,22 @@ export function drawSites(
     ctx.save();
     ctx.translate(x, y);
 
-    // Ground contact shadow
-    ctx.fillStyle = 'rgba(20, 10, 6, 0.35)';
+    // Ground contact glow
+    ctx.fillStyle = site.active ? 'rgba(60, 180, 255, 0.15)' : 'rgba(40, 60, 90, 0.2)';
     ctx.beginPath();
-    ctx.ellipse(0, 6, 22, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 8, 28, 8, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    if (site.kind === 'scaffold') {
-      drawScaffold(ctx);
-    } else if (site.kind === 'tent') {
-      drawTent(ctx);
-    } else if (site.kind === 'tower') {
-      drawTower(ctx);
+    if (site.kind === 'workbench') {
+      drawWorkbench(ctx, t, site.active);
+    } else if (site.kind === 'holodesk') {
+      drawHolodesk(ctx, t, site.active);
+    } else if (site.kind === 'server') {
+      drawServerRack(ctx, t, site.active);
+    } else if (site.kind === 'charger') {
+      drawCharger(ctx, t, site.active);
     } else {
-      drawDepot(ctx);
+      drawFabricator(ctx, t, site.active);
     }
 
     // Label plate
@@ -143,32 +148,40 @@ export function drawSites(
     ctx.font = '600 10px "Segoe UI", system-ui, sans-serif';
     ctx.textAlign = 'center';
     const tw = ctx.measureText(label).width;
-    ctx.fillStyle = 'rgba(12, 8, 6, 0.72)';
-    roundRect(ctx, -tw / 2 - 6, 14, tw + 12, 16, 3);
+    ctx.fillStyle = 'rgba(10, 15, 25, 0.85)';
+    roundRect(ctx, -tw / 2 - 6, 18, tw + 12, 16, 3);
     ctx.fill();
-    ctx.fillStyle = 'rgba(245, 230, 208, 0.88)';
-    ctx.fillText(label, 0, 25);
+    ctx.fillStyle = site.active ? 'rgba(100, 200, 255, 0.95)' : 'rgba(180, 200, 220, 0.85)';
+    ctx.fillText(label, 0, 29);
 
-    // Progress bar
+    // Progress bar (holographic style)
     if (site.active || site.progress > 0.02) {
-      const bw = 40;
+      const bw = 44;
       const bh = 5;
-      const by = -52;
-      ctx.fillStyle = 'rgba(12, 8, 6, 0.75)';
-      roundRect(ctx, -bw / 2 - 1, by - 1, bw + 2, bh + 2, 2);
+      const by = -58;
+
+      // Outer glow
+      ctx.fillStyle = 'rgba(60, 180, 255, 0.1)';
+      roundRect(ctx, -bw / 2 - 3, by - 3, bw + 6, bh + 6, 4);
       ctx.fill();
-      ctx.fillStyle = 'rgba(40, 28, 18, 0.9)';
+
+      // Background
+      ctx.fillStyle = 'rgba(20, 30, 50, 0.9)';
       roundRect(ctx, -bw / 2, by, bw, bh, 2);
       ctx.fill();
+
+      // Progress fill
       const fillW = Math.max(2, bw * site.progress);
       const barGrad = ctx.createLinearGradient(-bw / 2, by, -bw / 2 + fillW, by);
-      barGrad.addColorStop(0, '#2dd4a0');
-      barGrad.addColorStop(1, '#6ee7b7');
+      barGrad.addColorStop(0, '#3b82f6');
+      barGrad.addColorStop(0.5, '#60a5fa');
+      barGrad.addColorStop(1, '#93c5fd');
       ctx.fillStyle = barGrad;
       roundRect(ctx, -bw / 2, by, fillW, bh, 2);
       ctx.fill();
-      // thin highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+
+      // Shine
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.fillRect(-bw / 2 + 1, by + 1, fillW - 2, 1);
     }
 
@@ -176,162 +189,317 @@ export function drawSites(
   }
 }
 
-function drawScaffold(ctx: CanvasRenderingContext2D): void {
-  // Soft back panels
-  ctx.fillStyle = 'rgba(60, 40, 24, 0.55)';
-  ctx.fillRect(-14, -30, 28, 28);
-  // Platform base
-  ctx.fillStyle = '#2e2014';
-  ctx.fillRect(-17, -2, 34, 7);
-  // Vertical posts
-  ctx.strokeStyle = '#a87848';
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'square';
-  for (const ox of [-14, 0, 14]) {
+function drawWorkbench(ctx: CanvasRenderingContext2D, t: number, active: boolean): void {
+  // Table surface
+  const tableGrad = ctx.createLinearGradient(-30, -20, 30, 0);
+  tableGrad.addColorStop(0, '#2a3444');
+  tableGrad.addColorStop(1, '#1e2836');
+  ctx.fillStyle = tableGrad;
+  roundRect(ctx, -30, -8, 60, 14, 2);
+  ctx.fill();
+
+  // Table legs
+  ctx.fillStyle = '#1a222e';
+  ctx.fillRect(-26, 2, 6, 10);
+  ctx.fillRect(20, 2, 6, 10);
+
+  // Tools on table
+  ctx.fillStyle = '#4a5568';
+  ctx.fillRect(-20, -12, 8, 5);
+  ctx.fillRect(-8, -14, 4, 7);
+  ctx.fillRect(6, -11, 12, 4);
+
+  if (active) {
+    // Holographic display above bench
+    drawMiniHolo(ctx, 0, -35, t, 0.7);
+
+    // Tool glow
+    ctx.fillStyle = 'rgba(60, 180, 255, 0.3)';
     ctx.beginPath();
-    ctx.moveTo(ox, -2);
-    ctx.lineTo(ox, -32);
-    ctx.stroke();
+    ctx.arc(-4, -10, 15, 0, Math.PI * 2);
+    ctx.fill();
   }
-  // Decks / floors
-  ctx.fillStyle = 'rgba(140, 100, 55, 0.55)';
-  for (const oy of [-10, -20, -30]) {
-    ctx.fillRect(-14, oy - 1, 28, 3);
-  }
-  // Horizontal beams
-  ctx.strokeStyle = '#c49860';
-  ctx.lineWidth = 1.75;
-  for (const oy of [-10, -20, -30]) {
-    ctx.beginPath();
-    ctx.moveTo(-14, oy);
-    ctx.lineTo(14, oy);
-    ctx.stroke();
-  }
-  // Cross braces
-  ctx.strokeStyle = 'rgba(160, 120, 70, 0.65)';
-  ctx.lineWidth = 1.4;
+}
+
+function drawHolodesk(ctx: CanvasRenderingContext2D, t: number, active: boolean): void {
+  // Base platform
+  ctx.fillStyle = '#1a222e';
+  roundRect(ctx, -28, 0, 56, 10, 3);
+  ctx.fill();
+
+  // Circular emitter
+  ctx.strokeStyle = active ? 'rgba(60, 200, 255, 0.6)' : 'rgba(60, 100, 150, 0.3)';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(-14, -30);
-  ctx.lineTo(0, -10);
-  ctx.moveTo(14, -30);
-  ctx.lineTo(0, -10);
-  ctx.moveTo(-14, -20);
-  ctx.lineTo(14, -10);
+  ctx.ellipse(0, 5, 20, 4, 0, 0, Math.PI * 2);
   ctx.stroke();
-  // Amber caution stripes
+
+  if (active) {
+    // Holographic projection
+    const pulse = 0.7 + 0.3 * Math.sin(t * 2);
+
+    // Projection cone
+    ctx.fillStyle = `rgba(60, 200, 255, ${0.08 * pulse})`;
+    ctx.beginPath();
+    ctx.moveTo(-18, 0);
+    ctx.lineTo(-25, -45);
+    ctx.lineTo(25, -45);
+    ctx.lineTo(18, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Rotating hologram shape
+    drawHoloSphere(ctx, 0, -28, t, pulse);
+
+    // Data rings
+    ctx.strokeStyle = `rgba(100, 200, 255, ${0.4 * pulse})`;
+    ctx.lineWidth = 1;
+    ctx.save();
+    ctx.translate(0, -28);
+    ctx.rotate(t * 0.5);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 22, 6, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.rotate(Math.PI / 3);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 18, 5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawServerRack(ctx: CanvasRenderingContext2D, t: number, active: boolean): void {
+  // Rack frame
+  ctx.fillStyle = '#1a222e';
+  roundRect(ctx, -22, -45, 44, 52, 2);
+  ctx.fill();
+
+  // Server units
   for (let i = 0; i < 4; i++) {
-    ctx.fillStyle = i % 2 === 0 ? '#e8a84a' : '#1a1210';
-    ctx.fillRect(-16 + i * 8, 1, 8, 3);
+    const uy = -40 + i * 12;
+    ctx.fillStyle = '#252d3a';
+    roundRect(ctx, -18, uy, 36, 10, 1);
+    ctx.fill();
+
+    // LED indicators
+    const ledActive = active && (Math.sin(t * 3 + i) > 0);
+    ctx.fillStyle = ledActive ? '#34d399' : '#1e3a3a';
+    ctx.beginPath();
+    ctx.arc(-12, uy + 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = active ? '#3b82f6' : '#1e3a5a';
+    ctx.beginPath();
+    ctx.arc(-6, uy + 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Vent lines
+    ctx.strokeStyle = 'rgba(60, 80, 120, 0.4)';
+    ctx.lineWidth = 1;
+    for (let v = 0; v < 3; v++) {
+      ctx.beginPath();
+      ctx.moveTo(2 + v * 5, uy + 2);
+      ctx.lineTo(2 + v * 5, uy + 8);
+      ctx.stroke();
+    }
+  }
+
+  if (active) {
+    // Activity glow
+    const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+    ctx.fillStyle = `rgba(60, 180, 255, ${0.15 * pulse})`;
+    roundRect(ctx, -24, -47, 48, 56, 4);
+    ctx.fill();
   }
 }
 
-function drawTent(ctx: CanvasRenderingContext2D): void {
-  // Canvas body
-  const tentGrad = ctx.createLinearGradient(0, -28, 0, 6);
-  tentGrad.addColorStop(0, '#d4883a');
-  tentGrad.addColorStop(0.5, '#b06828');
-  tentGrad.addColorStop(1, '#8a4820');
-  ctx.fillStyle = tentGrad;
-  ctx.beginPath();
-  ctx.moveTo(0, -28);
-  ctx.lineTo(20, 4);
-  ctx.lineTo(-20, 4);
-  ctx.closePath();
+function drawCharger(ctx: CanvasRenderingContext2D, t: number, active: boolean): void {
+  // Charging pad
+  ctx.fillStyle = '#1a222e';
+  roundRect(ctx, -25, -5, 50, 14, 4);
   ctx.fill();
-  // Seam / ridge highlight
-  ctx.strokeStyle = 'rgba(255, 220, 160, 0.35)';
+
+  // Energy rings on pad
+  ctx.strokeStyle = active ? 'rgba(60, 200, 255, 0.5)' : 'rgba(60, 100, 150, 0.2)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(0, -28);
-  ctx.lineTo(0, 4);
+  ctx.ellipse(0, 2, 18, 4, 0, 0, Math.PI * 2);
   ctx.stroke();
-  // Shadow side
-  ctx.fillStyle = 'rgba(40, 20, 8, 0.25)';
   ctx.beginPath();
-  ctx.moveTo(0, -28);
-  ctx.lineTo(20, 4);
-  ctx.lineTo(0, 4);
-  ctx.closePath();
-  ctx.fill();
-  // Door flap
-  ctx.fillStyle = '#1a1008';
-  ctx.beginPath();
-  ctx.moveTo(-5, 4);
-  ctx.lineTo(0, -8);
-  ctx.lineTo(5, 4);
-  ctx.closePath();
-  ctx.fill();
-  // Guy ropes
-  ctx.strokeStyle = 'rgba(200, 170, 120, 0.5)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(-18, 2);
-  ctx.lineTo(-26, 8);
-  ctx.moveTo(18, 2);
-  ctx.lineTo(26, 8);
+  ctx.ellipse(0, 2, 12, 2.5, 0, 0, Math.PI * 2);
   ctx.stroke();
+
+  if (active) {
+    // Charging effect
+    const pulse = 0.5 + 0.5 * Math.sin(t * 3);
+
+    // Vertical energy beam
+    ctx.fillStyle = `rgba(60, 200, 255, ${0.15 * pulse})`;
+    ctx.beginPath();
+    ctx.moveTo(-8, 0);
+    ctx.lineTo(-4, -35);
+    ctx.lineTo(4, -35);
+    ctx.lineTo(8, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Energy particles rising
+    for (let i = 0; i < 5; i++) {
+      const py = -5 - ((t * 30 + i * 8) % 35);
+      const px = Math.sin(t * 2 + i) * 4;
+      ctx.fillStyle = `rgba(100, 220, 255, ${0.7 - Math.abs(py + 20) / 40})`;
+      ctx.beginPath();
+      ctx.arc(px, py, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Center indicator
+  ctx.fillStyle = active ? '#3b82f6' : '#2a3444';
+  ctx.beginPath();
+  ctx.arc(0, 2, 4, 0, Math.PI * 2);
+  ctx.fill();
 }
 
-function drawTower(ctx: CanvasRenderingContext2D): void {
-  // Mast
-  const mast = ctx.createLinearGradient(-6, -42, 6, 4);
-  mast.addColorStop(0, '#6a5040');
-  mast.addColorStop(1, '#3a2818');
-  ctx.fillStyle = mast;
-  ctx.fillRect(-5, -38, 10, 42);
-  // Lattice detail
-  ctx.strokeStyle = 'rgba(200, 160, 100, 0.4)';
+function drawFabricator(ctx: CanvasRenderingContext2D, t: number, active: boolean): void {
+  // Main unit body
+  ctx.fillStyle = '#1a222e';
+  roundRect(ctx, -24, -35, 48, 42, 3);
+  ctx.fill();
+
+  // Build chamber window
+  ctx.fillStyle = active ? 'rgba(60, 180, 255, 0.15)' : 'rgba(40, 60, 90, 0.2)';
+  roundRect(ctx, -18, -30, 36, 25, 2);
+  ctx.fill();
+
+  // Chamber frame
+  ctx.strokeStyle = 'rgba(80, 120, 180, 0.4)';
   ctx.lineWidth = 1;
-  for (let i = 0; i < 5; i++) {
-    const oy = -6 - i * 7;
+  ctx.strokeRect(-18, -30, 36, 25);
+
+  if (active) {
+    // Laser effect
+    const laserX = Math.sin(t * 4) * 12;
+    const laserY = Math.cos(t * 3) * 8 - 18;
+
+    ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(-5, oy);
-    ctx.lineTo(5, oy - 4);
-    ctx.moveTo(5, oy);
-    ctx.lineTo(-5, oy - 4);
+    ctx.moveTo(0, -32);
+    ctx.lineTo(laserX, laserY);
+    ctx.stroke();
+
+    // Laser glow
+    ctx.fillStyle = 'rgba(255, 100, 100, 0.6)';
+    ctx.beginPath();
+    ctx.arc(laserX, laserY, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Building object (wireframe cube)
+    ctx.strokeStyle = 'rgba(60, 200, 255, 0.5)';
+    ctx.lineWidth = 1;
+    const cubeSize = 8 + Math.sin(t) * 2;
+    ctx.strokeRect(-cubeSize / 2, -22 - cubeSize / 2, cubeSize, cubeSize);
+  }
+
+  // Control panel
+  ctx.fillStyle = '#252d3a';
+  ctx.fillRect(-20, 2, 40, 5);
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = active && i === Math.floor(t * 2) % 4 ? '#3b82f6' : '#1e3a5a';
+    ctx.beginPath();
+    ctx.arc(-12 + i * 8, 4.5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawMiniHolo(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, alpha: number): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = alpha;
+
+  // Glow
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
+  glow.addColorStop(0, 'rgba(60, 200, 255, 0.3)');
+  glow.addColorStop(1, 'rgba(60, 200, 255, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(-20, -20, 40, 40);
+
+  // Rotating wireframe
+  ctx.strokeStyle = 'rgba(100, 200, 255, 0.7)';
+  ctx.lineWidth = 1;
+  ctx.rotate(t * 0.8);
+
+  ctx.beginPath();
+  ctx.moveTo(-8, -8);
+  ctx.lineTo(8, -8);
+  ctx.lineTo(8, 8);
+  ctx.lineTo(-8, 8);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(-6, -6);
+  ctx.lineTo(6, 6);
+  ctx.moveTo(6, -6);
+  ctx.lineTo(-6, 6);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawHoloSphere(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, alpha: number): void {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Sphere glow
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 18);
+  glow.addColorStop(0, `rgba(80, 200, 255, ${0.4 * alpha})`);
+  glow.addColorStop(0.5, `rgba(60, 180, 255, ${0.2 * alpha})`);
+  glow.addColorStop(1, 'rgba(60, 180, 255, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, 0, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wireframe sphere lines
+  ctx.strokeStyle = `rgba(120, 220, 255, ${0.6 * alpha})`;
+  ctx.lineWidth = 1;
+
+  // Horizontal rings
+  for (let i = -2; i <= 2; i++) {
+    const ry = i * 4;
+    const rx = Math.sqrt(Math.max(0, 144 - ry * ry));
+    ctx.beginPath();
+    ctx.ellipse(0, ry, rx, rx * 0.3, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
-  // Beacon platform
-  ctx.fillStyle = '#c4782a';
-  ctx.fillRect(-12, -42, 24, 5);
-  ctx.fillStyle = '#e8a84a';
-  ctx.fillRect(-10, -44, 20, 3);
-  // Beacon light
-  ctx.fillStyle = '#fef3c7';
-  ctx.beginPath();
-  ctx.arc(0, -48, 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255, 200, 100, 0.25)';
-  ctx.beginPath();
-  ctx.arc(0, -48, 8, 0, Math.PI * 2);
-  ctx.fill();
+
+  // Vertical meridians
+  ctx.save();
+  for (let i = 0; i < 4; i++) {
+    ctx.rotate(Math.PI / 4);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 3, 12, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Data points
+  for (let i = 0; i < 6; i++) {
+    const angle = t + (i * Math.PI) / 3;
+    const px = Math.cos(angle) * 10;
+    const py = Math.sin(angle) * 10 * 0.4;
+    ctx.fillStyle = `rgba(150, 230, 255, ${0.8 * alpha})`;
+    ctx.beginPath();
+    ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 
-function drawDepot(ctx: CanvasRenderingContext2D): void {
-  // Crate body
-  const body = ctx.createLinearGradient(-18, -18, 18, 6);
-  body.addColorStop(0, '#7a5430');
-  body.addColorStop(1, '#4a3018');
-  ctx.fillStyle = body;
-  roundRect(ctx, -18, -16, 36, 20, 2);
-  ctx.fill();
-  // Lid
-  ctx.fillStyle = '#a86f2a';
-  roundRect(ctx, -20, -20, 40, 6, 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255, 220, 160, 0.2)';
-  ctx.fillRect(-18, -19, 36, 2);
-  // Band / stamp
-  ctx.strokeStyle = '#e8a84a';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(-12, -10, 24, 10);
-  ctx.fillStyle = 'rgba(232, 168, 74, 0.7)';
-  ctx.font = 'bold 7px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('SUPPLY', 0, -2);
-}
-
-/** Pixel agents with crisp integer scaling */
+/** Astro Bot-inspired cute robot agents */
 export function drawAgent(
   ctx: CanvasRenderingContext2D,
   agent: Agent,
@@ -341,141 +509,260 @@ export function drawAgent(
 ): void {
   const x = agent.x * w;
   const y = agent.y * h;
-  const scale = Math.max(2, Math.min(w, h) / 260);
+  const scale = Math.max(2.2, Math.min(w, h) / 240);
   const px = Math.round(scale);
-  const bob =
+
+  // Bounce animation - more playful for idle, energetic for building
+  const bounce =
     agent.state === 'walking'
-      ? Math.sin(agent.frame * 2) * px * 0.8
+      ? Math.abs(Math.sin(agent.frame * 2.5)) * px * 1.2
       : agent.state === 'building'
-        ? Math.sin(agent.frame * 3) * px * 0.4
+        ? Math.abs(Math.sin(agent.frame * 3.5)) * px * 0.8
         : agent.state === 'idle'
-          ? Math.sin(agent.frame * 0.8) * px * 0.2
+          ? Math.sin(agent.frame * 1.2) * px * 0.5
           : 0;
 
+  // Slight tilt when walking
+  const tilt = agent.state === 'walking' ? Math.sin(agent.frame * 2.5) * 0.08 : 0;
+
   ctx.save();
-  ctx.translate(Math.round(x), Math.round(y + bob));
-  // Pixel-crisp
+  ctx.translate(Math.round(x), Math.round(y - bounce));
+  ctx.rotate(tilt);
   ctx.imageSmoothingEnabled = false;
 
   const body = agent.color;
-  const shade = shadeColor(agent.color, -35);
-  const light = shadeColor(agent.color, 25);
-  const outline = '#120c08';
+  const shade = shadeColor(agent.color, -30);
+  const light = shadeColor(agent.color, 40);
   const accent = STATE_ACCENT[agent.state];
 
   // Soft ground shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.save();
+  ctx.rotate(-tilt);
+  ctx.translate(0, bounce);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
   ctx.beginPath();
-  ctx.ellipse(0, 7 * px, 5.5 * px, 2.2 * px, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 10 * px, 9 * px, 3 * px, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 
-  // Selection glow
+  // Selection glow ring
   if (selected) {
-    ctx.strokeStyle = 'rgba(232, 168, 74, 0.55)';
+    ctx.strokeStyle = 'rgba(100, 180, 255, 0.6)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.ellipse(0, 2 * px, 11 * px, 14 * px, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 3 * px, 14 * px, 16 * px, 0, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(232, 168, 74, 0.2)';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.ellipse(0, 2 * px, 12 * px, 15 * px, 0, 0, Math.PI * 2);
-    ctx.stroke();
+
+    const selGlow = ctx.createRadialGradient(0, 0, 5 * px, 0, 0, 18 * px);
+    selGlow.addColorStop(0, 'rgba(100, 180, 255, 0.15)');
+    selGlow.addColorStop(1, 'rgba(100, 180, 255, 0)');
+    ctx.fillStyle = selGlow;
+    ctx.fillRect(-20 * px, -20 * px, 40 * px, 40 * px);
   }
 
-  // Legs
-  const legOff = agent.state === 'walking' ? Math.sin(agent.frame * 2.2) * px * 1.6 : 0;
-  const legOff2 = agent.state === 'walking' ? Math.sin(agent.frame * 2.2 + Math.PI) * px * 1.6 : 0;
+  // Feet (little rounded nubs)
+  const footOff = agent.state === 'walking' ? Math.sin(agent.frame * 2.5) * px * 2 : 0;
   ctx.fillStyle = shade;
-  ctx.fillRect(Math.round(-3 * px + legOff2), Math.round(2 * px), 2 * px, 4 * px);
-  ctx.fillRect(Math.round(1 * px + legOff), Math.round(2 * px), 2 * px, 4 * px);
+  roundRect(ctx, -5 * px + footOff, 6 * px, 4 * px, 3 * px, px);
+  ctx.fill();
+  roundRect(ctx, 1 * px - footOff, 6 * px, 4 * px, 3 * px, px);
+  ctx.fill();
 
-  // Body outline + fill
-  ctx.fillStyle = outline;
-  ctx.fillRect(-4 * px - 1, -6 * px - 1, 8 * px + 2, 9 * px + 2);
+  // Body (rounded pill shape)
   ctx.fillStyle = body;
-  ctx.fillRect(-4 * px, -6 * px, 8 * px, 9 * px);
-  // Shoulder highlight
+  ctx.beginPath();
+  ctx.moveTo(-6 * px, 5 * px);
+  ctx.lineTo(-7 * px, -2 * px);
+  ctx.quadraticCurveTo(-7 * px, -6 * px, -4 * px, -7 * px);
+  ctx.lineTo(4 * px, -7 * px);
+  ctx.quadraticCurveTo(7 * px, -6 * px, 7 * px, -2 * px);
+  ctx.lineTo(6 * px, 5 * px);
+  ctx.quadraticCurveTo(6 * px, 7 * px, 4 * px, 7 * px);
+  ctx.lineTo(-4 * px, 7 * px);
+  ctx.quadraticCurveTo(-6 * px, 7 * px, -6 * px, 5 * px);
+  ctx.closePath();
+  ctx.fill();
+
+  // Body highlight
   ctx.fillStyle = light;
-  ctx.fillRect(-4 * px, -6 * px, 8 * px, 2 * px);
+  ctx.beginPath();
+  ctx.moveTo(-5 * px, -6 * px);
+  ctx.quadraticCurveTo(0, -8 * px, 5 * px, -6 * px);
+  ctx.lineTo(4 * px, -4 * px);
+  ctx.quadraticCurveTo(0, -5 * px, -4 * px, -4 * px);
+  ctx.closePath();
+  ctx.fill();
 
-  // Head
-  ctx.fillStyle = outline;
-  ctx.fillRect(-3 * px - 1, -11 * px - 1, 6 * px + 2, 5 * px + 2);
-  ctx.fillStyle = '#f0e0c8';
-  ctx.fillRect(-3 * px, -11 * px, 6 * px, 5 * px);
+  // Chest light / core (pulsing)
+  const corePulse = 0.7 + 0.3 * Math.sin(agent.frame * 2);
+  ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * corePulse})`;
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.5 * px, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Eyes
-  ctx.fillStyle = outline;
+  const coreGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 5 * px);
+  coreGlow.addColorStop(0, `rgba(200, 230, 255, ${0.4 * corePulse})`);
+  coreGlow.addColorStop(1, 'rgba(200, 230, 255, 0)');
+  ctx.fillStyle = coreGlow;
+  ctx.fillRect(-6 * px, -4 * px, 12 * px, 10 * px);
+
+  // Arms (little nubs on sides)
+  const armSwing = agent.state === 'walking' ? Math.sin(agent.frame * 2.5) * px * 1.5 : 
+                   agent.state === 'building' ? Math.sin(agent.frame * 4) * px : 0;
+  ctx.fillStyle = shade;
+  roundRect(ctx, -10 * px, -2 * px + armSwing, 3 * px, 6 * px, px);
+  ctx.fill();
+  roundRect(ctx, 7 * px, -2 * px - armSwing, 3 * px, 6 * px, px);
+  ctx.fill();
+
+  // Head (big rounded dome - the cute factor)
+  const headY = -11 * px;
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.arc(0, headY, 8 * px, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head highlight
+  ctx.fillStyle = light;
+  ctx.beginPath();
+  ctx.arc(-2 * px, headY - 3 * px, 4 * px, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Visor (big expressive eyes area)
+  ctx.fillStyle = '#0a1020';
+  ctx.beginPath();
+  ctx.ellipse(0, headY + px, 6 * px, 4 * px, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Visor glow
+  const visorColor = agent.state === 'errored' ? 'rgba(248, 113, 113, 0.4)' :
+                     agent.state === 'waiting' ? 'rgba(251, 191, 36, 0.4)' :
+                     'rgba(100, 180, 255, 0.4)';
+  ctx.fillStyle = visorColor;
+  ctx.beginPath();
+  ctx.ellipse(0, headY + px, 5.5 * px, 3.5 * px, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes in visor
   if (agent.state === 'errored') {
-    // X eyes
-    ctx.fillRect(-2 * px, -9 * px, px, px);
-    ctx.fillRect(1 * px, -9 * px, px, px);
+    // X eyes for error state
+    ctx.strokeStyle = '#ff6b6b';
+    ctx.lineWidth = px * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-3 * px, headY - px);
+    ctx.lineTo(-1 * px, headY + px);
+    ctx.moveTo(-1 * px, headY - px);
+    ctx.lineTo(-3 * px, headY + px);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(1 * px, headY - px);
+    ctx.lineTo(3 * px, headY + px);
+    ctx.moveTo(3 * px, headY - px);
+    ctx.lineTo(1 * px, headY + px);
+    ctx.stroke();
   } else {
-    ctx.fillRect(-2 * px, -9 * px, px, px);
-    ctx.fillRect(1 * px, -9 * px, px, px);
-    // Specular
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillRect(-2 * px, -9 * px, Math.max(1, px / 2), Math.max(1, px / 2));
+    // Happy/neutral eyes (white circles)
+    const eyeBlink = Math.sin(agent.frame * 0.5) > 0.95 ? 0.2 : 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(-2.5 * px, headY + px * 0.5, 1.5 * px, 2 * px * eyeBlink, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(2.5 * px, headY + px * 0.5, 1.5 * px, 2 * px * eyeBlink, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye shine
+    ctx.fillStyle = 'rgba(200, 230, 255, 0.8)';
+    ctx.beginPath();
+    ctx.arc(-3 * px, headY - px * 0.3, px * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(2 * px, headY - px * 0.3, px * 0.5, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  // Status accents
-  if (agent.state === 'building') {
-    // Hard hat
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(-3 * px, -13 * px, 6 * px, 2 * px);
-    ctx.fillRect(-2 * px, -14 * px, 4 * px, px);
-    // Hammer swing
-    const swing = Math.sin(agent.frame * 4) * 0.7;
-    ctx.save();
-    ctx.translate(5 * px, -2 * px);
-    ctx.rotate(swing);
-    ctx.fillStyle = '#8a5a28';
-    ctx.fillRect(0, -px, 5 * px, px);
-    ctx.fillStyle = '#9ca3af';
-    ctx.fillRect(4 * px, -2 * px, 2 * px, 3 * px);
-    ctx.restore();
-  } else if (agent.state === 'waiting') {
-    ctx.fillStyle = accent;
-    ctx.font = `600 ${Math.max(9, 4 * px)}px "Segoe UI", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('···', 0, -15 * px);
-  } else if (agent.state === 'errored') {
-    ctx.fillStyle = accent;
-    ctx.font = `700 ${Math.max(10, 5 * px)}px "Segoe UI", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('!', 0, -15 * px);
-  } else if (agent.state === 'walking') {
-    // Small motion chevron
-    ctx.fillStyle = accent;
-    ctx.globalAlpha = 0.6;
-    ctx.fillRect(-px, -13 * px, 2 * px, px);
-    ctx.globalAlpha = 1;
-  }
-
-  // Status color pip (top-right of body)
+  // Antenna (cute little bump on top)
+  ctx.fillStyle = shade;
+  ctx.fillRect(-px * 0.5, headY - 10 * px, px, 3 * px);
   ctx.fillStyle = accent;
   ctx.beginPath();
-  ctx.arc(4 * px, -5 * px, Math.max(1.5, px * 0.7), 0, Math.PI * 2);
+  ctx.arc(0, headY - 10 * px, px * 1.2, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = outline;
-  ctx.lineWidth = 1;
+
+  // State indicators
+  if (agent.state === 'building') {
+    // Tool in hand (wrench)
+    ctx.save();
+    ctx.translate(9 * px, -1 * px - armSwing);
+    ctx.rotate(Math.sin(agent.frame * 4) * 0.4);
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillRect(0, -px, 6 * px, 2 * px);
+    ctx.fillStyle = '#6b7280';
+    ctx.fillRect(5 * px, -2 * px, 3 * px, 4 * px);
+    ctx.restore();
+
+    // Work sparks
+    if (Math.random() < 0.3) {
+      ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
+      ctx.beginPath();
+      ctx.arc(10 * px + Math.random() * 5, -5 * px + Math.random() * 10, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (agent.state === 'waiting') {
+    // Thought dots
+    ctx.fillStyle = accent;
+    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(agent.frame * 3);
+    ctx.beginPath();
+    ctx.arc(-3 * px, headY - 14 * px, px, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(agent.frame * 3 + 1);
+    ctx.beginPath();
+    ctx.arc(0, headY - 15 * px, px, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(agent.frame * 3 + 2);
+    ctx.beginPath();
+    ctx.arc(3 * px, headY - 14 * px, px, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (agent.state === 'errored') {
+    // Alert symbol
+    ctx.fillStyle = accent;
+    ctx.font = `bold ${5 * px}px "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('!', 0, headY - 13 * px);
+  }
+
+  // Status pip (top-right)
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.arc(6 * px, -6 * px, px * 1.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#0a1020';
+  ctx.lineWidth = 0.5;
   ctx.stroke();
 
-  // Name tag
   ctx.imageSmoothingEnabled = true;
+
+  // Name tag (holographic style)
   const label = agent.name;
   ctx.font = `600 ${Math.max(9, 3.2 * px)}px "Segoe UI", system-ui, sans-serif`;
   ctx.textAlign = 'center';
   const tw = ctx.measureText(label).width;
-  ctx.fillStyle = 'rgba(12, 8, 6, 0.78)';
-  roundRect(ctx, -tw / 2 - 4, 8 * px, tw + 8, 13, 3);
+
+  // Tag background
+  ctx.fillStyle = 'rgba(10, 15, 30, 0.85)';
+  roundRect(ctx, -tw / 2 - 6, 11 * px, tw + 12, 14, 3);
   ctx.fill();
-  // Left accent bar matching agent color
-  ctx.fillStyle = body;
-  ctx.fillRect(-tw / 2 - 4, 8 * px + 2, 2, 9);
-  ctx.fillStyle = 'rgba(245, 230, 208, 0.92)';
-  ctx.fillText(label, 1, 8 * px + 10);
+
+  // Tag border glow
+  ctx.strokeStyle = `rgba(${hexToRgb(body)}, 0.4)`;
+  ctx.lineWidth = 1;
+  roundRect(ctx, -tw / 2 - 6, 11 * px, tw + 12, 14, 3);
+  ctx.stroke();
+
+  // Tag text
+  ctx.fillStyle = 'rgba(200, 220, 240, 0.95)';
+  ctx.fillText(label, 0, 11 * px + 10);
 
   ctx.restore();
 }
@@ -491,7 +778,7 @@ export function hitTestAgent(
     const a = agents[i];
     const ax = a.x * w;
     const ay = a.y * h;
-    if (Math.abs(mx - ax) < 18 && Math.abs(my - ay) < 28) return a;
+    if (Math.abs(mx - ax) < 22 && Math.abs(my - ay) < 32) return a;
   }
   return null;
 }
@@ -531,4 +818,13 @@ function shadeColor(hex: string, amt: number): string {
   const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + amt));
   const b = Math.max(0, Math.min(255, (num & 0xff) + amt));
   return `rgb(${r},${g},${b})`;
+}
+
+function hexToRgb(hex: string): string {
+  const n = hex.replace('#', '');
+  const num = parseInt(n.length === 3 ? n.split('').map((c) => c + c).join('') : n, 16);
+  const r = (num >> 16) & 0xff;
+  const g = (num >> 8) & 0xff;
+  const b = num & 0xff;
+  return `${r}, ${g}, ${b}`;
 }

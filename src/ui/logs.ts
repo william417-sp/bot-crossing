@@ -10,7 +10,6 @@ function formatTime(iso: string): string {
       minute: '2-digit',
       second: '2-digit',
       hour12: false,
-      timeZone: 'America/Puerto_Rico',
     });
   } catch {
     return '--:--:--';
@@ -40,9 +39,10 @@ export function appendLogLine(line: LogLinePayload): void {
 function makeLogRow(line: LogLinePayload): HTMLElement {
   const row = document.createElement('div');
   row.className = 'log-line';
+  const source = line.agentName || line.harness;
   row.innerHTML = `
     <span class="ts">${formatTime(line.timestamp)}</span>
-    <span class="harness">${escapeHtml(line.harness)}</span>
+    <span class="harness">${escapeHtml(source)}</span>
     <span class="msg level-${escapeHtml(line.level)}">${escapeHtml(line.message)}</span>
   `;
   return row;
