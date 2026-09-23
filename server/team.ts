@@ -142,6 +142,20 @@ const MOCK_TASKS = [
   'Processing analytics data',
   'Generating weekly report',
   'Configuring workflow automation',
+  'Analyzing SPY 0DTE call flow',
+  'Scanning for momentum breakouts',
+  'Monitoring mean reversion signals',
+  'Reviewing macro catalyst calendar',
+  'Calculating position size limits',
+  'Clipping highlight reel for shorts',
+  'Rendering video transitions',
+  'Drafting pitch deck for client',
+  'Sending outbound sales emails',
+  'Coordinating desk trade entries',
+  'Tracking paper options P&L',
+  'Reviewing Journey trade structure',
+  'Processing Be Better Shorts queue',
+  'Updating client proposal template',
 ];
 
 let mockRotationIndex = 0;

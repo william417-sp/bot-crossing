@@ -6,7 +6,9 @@
     { "id": "ws-holo", "name": "Holo Lab", "x": 0.52, "y": 0.56, "kind": "holodesk" },
     { "id": "ws-server", "name": "Server Rack", "x": 0.72, "y": 0.64, "kind": "server" },
     { "id": "ws-charge", "name": "Charging Bay", "x": 0.40, "y": 0.74, "kind": "charger" },
-    { "id": "ws-fab", "name": "Fab Station", "x": 0.62, "y": 0.72, "kind": "fabricator" }
+    { "id": "ws-fab", "name": "Fab Station", "x": 0.62, "y": 0.72, "kind": "fabricator" },
+    { "id": "ws-trade", "name": "Trade Desk", "x": 0.85, "y": 0.68, "kind": "holodesk" },
+    { "id": "ws-agency", "name": "Agency Bay", "x": 0.20, "y": 0.58, "kind": "workbench" }
   ],
   "agents": [
     {
@@ -62,6 +64,87 @@
       "y": 0.68,
       "color": "#2dd4bf",
       "description": "Handles trading analysis and market operations"
+    },
+    {
+      "id": "bot-alturas",
+      "name": "Alturas Pitch",
+      "role": "pitcher",
+      "x": 0.22,
+      "y": 0.55,
+      "color": "#f59e0b",
+      "description": "Agency pitch packages / outbound for local businesses"
+    },
+    {
+      "id": "bot-journey",
+      "name": "Journey Crane",
+      "role": "trader",
+      "x": 0.82,
+      "y": 0.52,
+      "color": "#8b5cf6",
+      "description": "Paper options — structure-first Journey-style method"
+    },
+    {
+      "id": "bot-momentum",
+      "name": "Momentum Hawk",
+      "role": "trader",
+      "x": 0.88,
+      "y": 0.58,
+      "color": "#ec4899",
+      "description": "Paper options — momentum / breakout"
+    },
+    {
+      "id": "bot-mean",
+      "name": "Mean Revert Fox",
+      "role": "trader",
+      "x": 0.85,
+      "y": 0.65,
+      "color": "#14b8a6",
+      "description": "Paper options — mean-reversion / fade extremes"
+    },
+    {
+      "id": "bot-clip",
+      "name": "Clip Studio",
+      "role": "producer",
+      "x": 0.28,
+      "y": 0.78,
+      "color": "#ef4444",
+      "description": "AI clipping producer for Be Better Shorts"
+    },
+    {
+      "id": "bot-catalyst",
+      "name": "Catalyst Owl",
+      "role": "trader",
+      "x": 0.80,
+      "y": 0.72,
+      "color": "#0ea5e9",
+      "description": "Paper options — catalyst / macro"
+    },
+    {
+      "id": "bot-sales",
+      "name": "Sales Representative",
+      "role": "sales",
+      "x": 0.25,
+      "y": 0.62,
+      "color": "#f97316",
+      "description": "Agency sales rep for web/app studio outbound"
+    },
+    {
+      "id": "bot-iron",
+      "name": "Iron Discipline",
+      "role": "trader",
+      "x": 0.90,
+      "y": 0.78,
+      "color": "#6b7280",
+      "description": "Paper options — capital preservation first"
+    },
+    {
+      "id": "bot-tradewars",
+      "name": "Trade Wars",
+      "role": "desk",
+      "x": 0.78,
+      "y": 0.82,
+      "color": "#eab308",
+      "description": "Options desk coordinator / Trade Wars book"
     }
   ]
 }

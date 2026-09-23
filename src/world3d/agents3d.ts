@@ -52,6 +52,11 @@ const ROLE_VISUALS: Record<string, RoleVisual> = {
   builder: { headShape: 'wide', antennaStyle: 'single', toolType: 'wrench' },
   helper: { headShape: 'round', antennaStyle: 'dish', toolType: 'scanner' },
   analyst: { headShape: 'tall', antennaStyle: 'dual', toolType: 'chart' },
+  pitcher: { headShape: 'round', antennaStyle: 'spike', toolType: 'clipboard' },
+  trader: { headShape: 'tall', antennaStyle: 'dual', toolType: 'chart' },
+  producer: { headShape: 'wide', antennaStyle: 'loop', toolType: 'tablet' },
+  sales: { headShape: 'round', antennaStyle: 'dish', toolType: 'tablet' },
+  desk: { headShape: 'square', antennaStyle: 'dual', toolType: 'clipboard' },
 };
 
 const DEFAULT_VISUAL: RoleVisual = { headShape: 'round', antennaStyle: 'single', toolType: 'wrench' };
