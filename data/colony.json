@@ -6,7 +6,9 @@
     { "id": "ws-holo", "name": "Holo Lab", "x": 0.52, "y": 0.56, "kind": "holodesk" },
     { "id": "ws-server", "name": "Server Rack", "x": 0.72, "y": 0.64, "kind": "server" },
     { "id": "ws-charge", "name": "Charging Bay", "x": 0.40, "y": 0.74, "kind": "charger" },
-    { "id": "ws-fab", "name": "Fab Station", "x": 0.62, "y": 0.72, "kind": "fabricator" }
+    { "id": "ws-fab", "name": "Fab Station", "x": 0.62, "y": 0.72, "kind": "fabricator" },
+    { "id": "ws-trade", "name": "Trade Desk", "x": 0.85, "y": 0.68, "kind": "holodesk" },
+    { "id": "ws-agency", "name": "Agency Bay", "x": 0.20, "y": 0.58, "kind": "workbench" }
   ],
   "agents": [
     { "id": "bot-cos", "name": "Chief of Staff", "x": 0.35, "y": 0.58, "color": "#60a5fa" },
@@ -14,6 +16,15 @@
     { "id": "bot-frontend", "name": "Front-End Designer", "x": 0.58, "y": 0.66, "color": "#f472b6" },
     { "id": "bot-world", "name": "Bot Crossing World", "x": 0.68, "y": 0.58, "color": "#fbbf24" },
     { "id": "bot-assistant", "name": "Assistant", "x": 0.42, "y": 0.70, "color": "#a78bfa" },
-    { "id": "bot-trade", "name": "Tradebot", "x": 0.75, "y": 0.68, "color": "#2dd4bf" }
+    { "id": "bot-trade", "name": "Tradebot", "x": 0.75, "y": 0.68, "color": "#2dd4bf" },
+    { "id": "bot-alturas", "name": "Alturas Pitch", "x": 0.22, "y": 0.55, "color": "#f59e0b", "role": "pitcher" },
+    { "id": "bot-journey", "name": "Journey Crane", "x": 0.82, "y": 0.52, "color": "#8b5cf6", "role": "trader" },
+    { "id": "bot-momentum", "name": "Momentum Hawk", "x": 0.88, "y": 0.58, "color": "#ec4899", "role": "trader" },
+    { "id": "bot-mean", "name": "Mean Revert Fox", "x": 0.85, "y": 0.65, "color": "#14b8a6", "role": "trader" },
+    { "id": "bot-clip", "name": "Clip Studio", "x": 0.28, "y": 0.78, "color": "#ef4444", "role": "producer" },
+    { "id": "bot-catalyst", "name": "Catalyst Owl", "x": 0.80, "y": 0.72, "color": "#0ea5e9", "role": "trader" },
+    { "id": "bot-sales", "name": "Sales Representative", "x": 0.25, "y": 0.62, "color": "#f97316", "role": "sales" },
+    { "id": "bot-iron", "name": "Iron Discipline", "x": 0.90, "y": 0.78, "color": "#6b7280", "role": "trader" },
+    { "id": "bot-tradewars", "name": "Trade Wars", "x": 0.78, "y": 0.82, "color": "#eab308", "role": "desk" }
   ]
 }
